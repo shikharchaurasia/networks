@@ -44,12 +44,12 @@ int main(int argc, char **argv)
     }
     int port_number = atoi(argv[1]);
     int srv_socket_fd;
-    struct addrinfo hints;
-    struct addrinfo *server_info, p;
+    struct sockaddr_in hints;
+    struct addrinfo *server_info, *p;
     // hints: indicates the protocols and socket types required.
     memset(&hints, 0, sizeof(hints));
     hints.sin_port = htons(port_number);
-    hints.sin_addr = htonl(INADDR_ANY);
+    hints.sin_addr.s_addr = htonl(INADDR_ANY);
     hints.sin_family = AF_INET;
     // used for DNS lookup - returns ip address witin server_info using the port number.
     if ((getaddrinfo(NULL, argv[1], &hints, &server_info)) != 0)
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 
     // sender's information - used in recvfrom
     struct sockaddr_storage sender_info;
-    socklen_t sender_info_size = sizeof(sockaddr_storage);
+    socklen_t sender_info_size = sizeof(struct sockaddr_storage);
     char *text_buffer = (char *)malloc(sizeof(char) * 256);
     int numbytes;
     if ((numbytes = recvfrom(srv_socket_fd, text_buffer, 256, 0, (struct sockaddr *)&sender_info, sender_info_size)) == -1)
