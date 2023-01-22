@@ -6,6 +6,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <unistd.h>
+
 
 // main goal: to make use of UDP and send between client and server.
 /*
@@ -25,13 +27,13 @@ int main(int argc, char **argv)
     }
     int port_number = atoi(argv[1]);
     int srv_socket_fd;
-    struct sockaddr_in hints;
+    struct addrinfo hints;
     struct addrinfo *server_info, *p;
     // hints: indicates the protocols and socket types required.
     memset(&hints, 0, sizeof(hints));
-    hints.sin_port = htons(port_number);
-    hints.sin_addr.s_addr = htonl(INADDR_ANY);
-    hints.sin_family = AF_INET;
+    hints.ai_family = AF_INET; // set to AF_INET to use IPv4
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_PASSIVE; // use my IP
     // used for DNS lookup - returns ip address witin server_info using the port number.
     if ((getaddrinfo(NULL, argv[1], &hints, &server_info)) != 0)
     {
@@ -62,10 +64,11 @@ int main(int argc, char **argv)
 
     // sender's information - used in recvfrom
     struct sockaddr_storage sender_info;
-    socklen_t sender_info_size = sizeof(struct sockaddr_storage);
+    int sender_info_size = sizeof(struct sockaddr_storage);
     char *text_buffer = (char *)malloc(sizeof(char) * 256);
+    printf("Memory created\n");
     int numbytes;
-    if ((numbytes = recvfrom(srv_socket_fd, text_buffer, 256, 0, (struct sockaddr *)&sender_info, sender_info_size)) == -1)
+    if ((numbytes = recvfrom(srv_socket_fd, text_buffer, 256, 0, (struct sockaddr *)&sender_info, &sender_info_size)) == -1)
     {
         perror("recvfrom");
         close(srv_socket_fd);
@@ -97,3 +100,4 @@ int main(int argc, char **argv)
     free(text_buffer);
     return 0;
 }
+
