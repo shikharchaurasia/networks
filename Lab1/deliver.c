@@ -126,6 +126,7 @@ int main(int argc, char **argv)
         // if only space was entered, token will be nullptr of length 0 - exit.
         if (token == NULL)
         {
+            printf("error: usage ftp\n");
             free(file_dummy);
             exit(0);
         }
