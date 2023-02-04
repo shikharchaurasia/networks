@@ -62,12 +62,11 @@ int main(int argc, char **argv)
             exit(1);
         }
         freeaddrinfo(server_info);
-
+        printf("Server running on port: %d\n", port_number);
         // sender's information - used in recvfrom
         struct sockaddr_storage sender_info;
         int sender_info_size = sizeof(struct sockaddr_storage);
         char *text_buffer = (char *)malloc(sizeof(char) * 256);
-        printf("Memory created\n");
         int numbytes;
         if ((numbytes = recvfrom(srv_socket_fd, text_buffer, 256, 0, (struct sockaddr *)&sender_info, &sender_info_size)) == -1)
         {
