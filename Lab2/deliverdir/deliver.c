@@ -155,10 +155,56 @@ int main(int argc, char **argv)
                 {
                     printf("A file transfer can start.\n");
 
-                    // Lab 2 starts here 
-                    
+                    // Lab 2 starts here
 
 
+                    // FILE *fileBin;
+                    // char data[2000];
+
+                    // for (int i = 0; i < 2000; i++) {
+                    //     data[i] = i % 256;
+                    // }
+
+                    // fileBin = fopen("binary_file.bin", "wb");
+
+                    // fwrite(data, sizeof(char), 2000, fileBin);
+
+                    // fclose(fileBin);
+
+                    FILE *fp;
+                    char buffer[1000];
+                    long offset;
+
+                    fp = fopen(file_name, "rb");
+                    if (fp == NULL)
+                    {
+                        printf("Could not open file\n");
+                        return 1;
+                    }
+
+                    offset = 1000;
+                    // int result = fseek(fp, offset, SEEK_SET);
+                    long currentPointer = 0;
+                    long size;
+                    fseek(fp, 0, SEEK_END);
+                    size = ftell(fp);
+                    fseek(fp, 0, SEEK_SET);
+                    printf("File size: %ld bytes\n", size);
+                    while(currentPointer<=size){
+                        size_t items_read = fread(buffer, 1, 1000, fp);
+                        printf("\n --------- \n");
+                        printf("Read %ld bytes from file:\n", items_read);
+                        printf("\n --------- \n");
+                        for (int i = 0; i < items_read; i++)
+                        {
+                            printf("%c", buffer[i]);
+                        }
+                        printf("\n");
+                        fseek(fp, offset, currentPointer);
+                        currentPointer+=1000;
+                    }                        
+
+                    fclose(fp);
                 }
                 // if received message was no
                 else
