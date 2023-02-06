@@ -120,7 +120,7 @@ int main(int argc, char **argv)
                 // send protocol (ftp) to the server
                 struct timeval start;
                 gettimeofday(&start, NULL);
-
+                
                 if (sendto(srv_socket_fd, protocol, strlen(protocol), 0, server_info->ai_addr, server_info->ai_addrlen) == -1)
                 {
                     perror("sendto\n");
@@ -153,6 +153,7 @@ int main(int argc, char **argv)
                 if (strcmp(text_buffer, message) == 0)
                 {
                     printf("A file transfer can start.\n");
+                    // start Lab 2 from here.
                 }
                 // if received message was no
                 else
@@ -164,7 +165,7 @@ int main(int argc, char **argv)
             else
             {
                 free(file_dummy);
-                fprintf(stderr, "File not found. Exiting.");
+                fprintf(stderr, "File not found. Exiting.\n");
                 exit(0);
             }
         }
