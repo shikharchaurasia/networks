@@ -29,6 +29,15 @@ struct Packet
     char *filename;
     char filedata[1000];
 };
+// function to count number of digits to send as a packet
+int count_digits(int number){
+    int c= 0;
+    while(number!=0){
+        number/=10;
+        c++;
+    }
+    return c;
+}
 
 // function that checks if the file exists or not
 bool does_file_exist(const char *file_name)
@@ -162,7 +171,7 @@ int main(int argc, char **argv)
                     long offset = 1000;
                     char fileContent[1000];
                     struct Packet *packet;
-
+                    char sendPacket[1000];
                     fileOpen = fopen(file_name, "rb");
                     if (fileOpen == NULL)
                     {
@@ -174,6 +183,9 @@ int main(int argc, char **argv)
                     long size = ftell(fileOpen);
                     fseek(fileOpen, 0, SEEK_SET);
                     int total_frag = size/1000 + 1;
+                    if(size%1000==0){
+                        total_frag--;
+                    }
                     // printf("%d", total_frag)
                     packet = (struct Packet *)malloc(total_frag * sizeof(struct Packet));
                     int currentFrag = 1;
@@ -190,16 +202,47 @@ int main(int argc, char **argv)
                             packet[i].size = 1000;
                         }
                         packet[i].filename = file_name;
-                        memcpy(packet[i].filedata, fileContent, sizeof(fileContent));
+                        memcpy(packet[i].filedata, fileContent, packet[i].size);
 
                         //offsetting by 1000 here
                         fseek(fileOpen, offset, currentPointer);
                         currentPointer+=1000;
                         currentFrag++;
                     }
-                    for (i = 0; i < total_frag; i++) {
-                        printf("total_frag: %d,\n frag_no: %d,\n size: %d,\n filename: %s,\n filedata: %s\n", packet[i].total_frag, packet[i].frag_no, packet[i].size, packet[i].filename, packet[i].filedata);
-                    }            
+                    
+                    int staticCount = count_digits(total_frag)+strlen(file_name);
+                    int totalSize;
+                    int frag_no;
+                    int sizeCount;
+
+                    // the total frag and the file name is static so we can count that separately
+                     for (i = 0; i < total_frag; i++) {
+                        frag_no = count_digits(packet[i].frag_no);
+                        sizeCount = count_digits(packet[i].size);
+                        totalSize = staticCount+frag_no+sizeCount+4+packet[i].size;
+                        char packetMessage[totalSize];
+                        // total_frag + frag_no + sizeCount + colons + data + \n + 1extra
+                        sprintf(packetMessage, "%d:%d:%d:%s:", packet[i].total_frag, packet[i].frag_no, packet[i].size, packet[i].filename);
+                        // so we need to store data in packetMessage now.
+                        // to do that we do piece by piece.
+
+                        int index = staticCount+frag_no+sizeCount+4;
+                        for(int j=0;j<packet[i].size; j++){
+                            packetMessage[index]=packet[i].filedata[j];
+                            index++;
+                        }
+                        packetMessage[index] = '\0';
+
+                        printf("%s \n", packetMessage);
+
+                        if (sendto(srv_socket_fd, packetMessage, totalSize, 0, server_info->ai_addr, server_info->ai_addrlen) == -1)
+                        {
+                            perror("sendto\n");
+                            freeaddrinfo(server_info);
+                            close(srv_socket_fd);
+                            exit(0);
+                        }
+                    }          
 
                     fclose(fileOpen);
                 }
