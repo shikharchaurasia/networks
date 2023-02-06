@@ -168,31 +168,38 @@ int main(int argc, char **argv)
                     // Lab 2 starts here
 
                     FILE *fileOpen;
-                    long offset = 1000;
+                    long offset = 1000; // value to offset file pointer.
                     char fileContent[1000];
                     struct Packet *packet;
-                    char sendPacket[1000];
+
                     fileOpen = fopen(file_name, "rb");
                     if (fileOpen == NULL)
                     {
                         printf("An error occurred while opening the file.\n");
                         exit(0);
                     }
-                    long currentPointer = 0;
+                    
+                    long currentPointer = 0; // will be used to offset the file pointer.
+
+                    // check the size of the file
                     fseek(fileOpen, 0, SEEK_END);
                     long size = ftell(fileOpen);
+                    // set the file pointer back to the start
                     fseek(fileOpen, 0, SEEK_SET);
+                    
+                    // finding the total number of fragments the file will be split into
                     int total_frag = size/1000 + 1;
                     if(size%1000==0){
                         total_frag--;
                     }
-                    // printf("%d", total_frag)
                     packet = (struct Packet *)malloc(total_frag * sizeof(struct Packet));
                     int currentFrag = 1;
                     int i;
                     while(currentFrag<=total_frag){
                         i = currentFrag-1;
                         size_t items_read = fread(fileContent, 1, 1000, fileOpen);
+                        // read the data to max 1000 bytes in the file.
+                        // store the data into struct.
                         packet[i].total_frag = total_frag;
                         packet[i].frag_no = currentFrag;
                         if(currentFrag==total_frag){
@@ -204,25 +211,28 @@ int main(int argc, char **argv)
                         packet[i].filename = file_name;
                         memcpy(packet[i].filedata, fileContent, packet[i].size);
 
-                        //offsetting by 1000 here
+                        //offsetting by 1000 here to move to the next data.
                         fseek(fileOpen, offset, currentPointer);
                         currentPointer+=1000;
                         currentFrag++;
                     }
                     
+                    // the total fragments and the file name is static so we can count that separately
                     int staticCount = count_digits(total_frag)+strlen(file_name);
                     int totalSize;
                     int frag_no;
                     int sizeCount;
 
-                    // the total frag and the file name is static so we can count that separately
                      for (i = 0; i < total_frag; i++) {
+                        
+                        // we need to calculate the total size of the packet message
                         frag_no = count_digits(packet[i].frag_no);
                         sizeCount = count_digits(packet[i].size);
                         totalSize = staticCount+frag_no+sizeCount+4+packet[i].size;
                         char packetMessage[totalSize];
                         // total_frag + frag_no + sizeCount + colons + data + \n + 1extra
                         sprintf(packetMessage, "%d:%d:%d:%s:", packet[i].total_frag, packet[i].frag_no, packet[i].size, packet[i].filename);
+                        
                         // so we need to store data in packetMessage now.
                         // to do that we do piece by piece.
 
@@ -233,7 +243,7 @@ int main(int argc, char **argv)
                         }
                         packetMessage[index] = '\0';
 
-                        printf("%s \n", packetMessage);
+                        // send the packet message here
 
                         if (sendto(srv_socket_fd, packetMessage, totalSize, 0, server_info->ai_addr, server_info->ai_addrlen) == -1)
                         {
