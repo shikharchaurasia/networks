@@ -20,14 +20,15 @@ Shikhar Chaurasia (Student # 1006710016)
 and
 Gunin Wasan (Student # 1007147749)
 */
-// struct packet
-// {
-//     unsigned int total_frag;
-//     unsigned int frag_no;
-//     unsigned int size;
-//     char *filename;
-//     char filedata[1000];
-// }
+
+struct Packet
+{
+    unsigned int total_frag;
+    unsigned int frag_no;
+    unsigned int size;
+    char *filename;
+    char filedata[1000];
+};
 
 // function that checks if the file exists or not
 bool does_file_exist(const char *file_name)
@@ -157,54 +158,50 @@ int main(int argc, char **argv)
 
                     // Lab 2 starts here
 
+                    FILE *fileOpen;
+                    long offset = 1000;
+                    char fileContent[1000];
+                    struct Packet *packet;
 
-                    // FILE *fileBin;
-                    // char data[2000];
-
-                    // for (int i = 0; i < 2000; i++) {
-                    //     data[i] = i % 256;
-                    // }
-
-                    // fileBin = fopen("binary_file.bin", "wb");
-
-                    // fwrite(data, sizeof(char), 2000, fileBin);
-
-                    // fclose(fileBin);
-
-                    FILE *fp;
-                    char buffer[1000];
-                    long offset;
-
-                    fp = fopen(file_name, "rb");
-                    if (fp == NULL)
+                    fileOpen = fopen(file_name, "rb");
+                    if (fileOpen == NULL)
                     {
-                        printf("Could not open file\n");
-                        return 1;
+                        printf("An error occurred while opening the file.\n");
+                        exit(0);
                     }
-
-                    offset = 1000;
-                    // int result = fseek(fp, offset, SEEK_SET);
                     long currentPointer = 0;
-                    long size;
-                    fseek(fp, 0, SEEK_END);
-                    size = ftell(fp);
-                    fseek(fp, 0, SEEK_SET);
-                    printf("File size: %ld bytes\n", size);
-                    while(currentPointer<=size){
-                        size_t items_read = fread(buffer, 1, 1000, fp);
-                        printf("\n --------- \n");
-                        printf("Read %ld bytes from file:\n", items_read);
-                        printf("\n --------- \n");
-                        for (int i = 0; i < items_read; i++)
-                        {
-                            printf("%c", buffer[i]);
+                    fseek(fileOpen, 0, SEEK_END);
+                    long size = ftell(fileOpen);
+                    fseek(fileOpen, 0, SEEK_SET);
+                    int total_frag = size/1000 + 1;
+                    // printf("%d", total_frag)
+                    packet = (struct Packet *)malloc(total_frag * sizeof(struct Packet));
+                    int currentFrag = 1;
+                    int i;
+                    while(currentFrag<=total_frag){
+                        i = currentFrag-1;
+                        size_t items_read = fread(fileContent, 1, 1000, fileOpen);
+                        packet[i].total_frag = total_frag;
+                        packet[i].frag_no = currentFrag;
+                        if(currentFrag==total_frag){
+                            packet[i].size = size-currentPointer;
                         }
-                        printf("\n");
-                        fseek(fp, offset, currentPointer);
-                        currentPointer+=1000;
-                    }                        
+                        else{
+                            packet[i].size = 1000;
+                        }
+                        packet[i].filename = file_name;
+                        memcpy(packet[i].filedata, fileContent, sizeof(fileContent));
 
-                    fclose(fp);
+                        //offsetting by 1000 here
+                        fseek(fileOpen, offset, currentPointer);
+                        currentPointer+=1000;
+                        currentFrag++;
+                    }
+                    for (i = 0; i < total_frag; i++) {
+                        printf("total_frag: %d,\n frag_no: %d,\n size: %d,\n filename: %s,\n filedata: %s\n", packet[i].total_frag, packet[i].frag_no, packet[i].size, packet[i].filename, packet[i].filedata);
+                    }            
+
+                    fclose(fileOpen);
                 }
                 // if received message was no
                 else
