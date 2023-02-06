@@ -154,6 +154,11 @@ int main(int argc, char **argv)
                 if (strcmp(text_buffer, message) == 0)
                 {
                     printf("A file transfer can start.\n");
+
+                    // Lab 2 starts here 
+                    
+
+
                 }
                 // if received message was no
                 else
@@ -165,7 +170,7 @@ int main(int argc, char **argv)
             else
             {
                 free(file_dummy);
-                fprintf(stderr, "File not found. Exiting.");
+                fprintf(stderr, "File not found. Exiting.\n");
                 exit(0);
             }
         }
