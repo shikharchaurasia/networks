@@ -143,6 +143,7 @@ int main(int argc, char **argv)
             char *token;
             // made use of dummy receive buffer because strtok modifies original buffer
             token = strtok(dummy_receive_buffer, ":");
+            // printf("%s\n", token)
             packet.total_frag = atoi(token);
             // printf("EEEEE%lu\n", packet.total_frag);
             token = strtok(NULL, ":");
@@ -154,7 +155,7 @@ int main(int argc, char **argv)
             // if(packet.frag_no == 1){
             token = strtok(NULL, ":");
             packet.filename = (char *)malloc(sizeof(char) * strlen(token));
-            memcpy(packet.filename, token, sizeof(token));
+            memcpy(packet.filename, token, strlen(token));
                 // strcpy(packet.filename, token);
             // }
             printf("packet total_frag: %d\n", packet.total_frag);
@@ -163,15 +164,16 @@ int main(int argc, char **argv)
             printf("packet file name: %s\n", packet.filename);
             int result = set_cursor_filedata(packet_receive_buffer, 4);
             int i = result, k = 0;
-            for(i = result; i <= result + packet.size; i++){
-                packet.filedata[k] = dummy_receive_buffer[i];
-                k++;
-            }
+            memcpy(packet.filedata, packet_receive_buffer+result, packet.size);
+            // for(i = result; i <= result + packet.size; i++){
+            //     packet.filedata[k] = packet_receive_buffer[i];
+            //     k++;
+            // }
             // if(packet.frag_no == 1){
             if(created_fp == NULL){
                 created_fp = fopen(packet.filename, "ab");
             }
-            int rv = fwrite(packet.filedata, 1, packet.size, created_fp);
+            int rv = fwrite(packet.filedata, sizeof(char), packet.size, created_fp);
             
             // }
             // printf("packet file name: %s\n", packet.filename);
