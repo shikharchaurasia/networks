@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <stdbool.h>
 #include <netdb.h>
 #include <unistd.h>
 
@@ -15,7 +16,29 @@ Shikhar Chaurasia (Student # 1006710016)
 and
 Gunin Wasan (Student # 1007147749)
 */
-
+int set_cursor_filedata(const char *str, int n)
+{
+    int cursor = 0;
+    int count = 0;
+    while(1){
+        if(str[cursor] == ':'){
+            count++;
+        }
+        cursor++;
+        if(count == n){
+            return cursor;
+        }
+    }
+    return cursor;
+}
+struct Packet
+{
+    unsigned int total_frag;
+    unsigned int frag_no;
+    unsigned int size;
+    char *filename;
+    char filedata[1000];
+};
 int main(int argc, char **argv)
 {
     // incorrect usage of the server
@@ -63,6 +86,8 @@ int main(int argc, char **argv)
         }
         freeaddrinfo(server_info);
         printf("Server running on port: %d\n", port_number);
+
+
         // sender's information - used in recvfrom
         struct sockaddr_storage sender_info;
         int sender_info_size = sizeof(struct sockaddr_storage);
@@ -96,8 +121,72 @@ int main(int argc, char **argv)
                 exit(1);
             }
         }
-        close(srv_socket_fd);
         free(text_buffer);
+        char packet_receive_buffer[1100] = {0}, dummy_receive_buffer[1100] = {0};
+        struct Packet packet;
+        bool finished_receive = false;
+        FILE *created_fp = NULL;
+        while(finished_receive == false){
+            
+            if ((numbytes = recvfrom(srv_socket_fd, packet_receive_buffer, 1100, 0, (struct sockaddr *)&sender_info, &sender_info_size)) == -1)
+            {   
+                perror("recvfrom packets\n");
+                close(srv_socket_fd);
+                exit(1);
+            }
+            // received the string
+            // convert the received string to packet.
+            // split into: 1) total frag 2) current frag 3) packet size
+            // copy the message in itself
+            
+            memcpy(dummy_receive_buffer, packet_receive_buffer, sizeof(packet_receive_buffer));
+            char *token;
+            // made use of dummy receive buffer because strtok modifies original buffer
+            token = strtok(dummy_receive_buffer, ":");
+            packet.total_frag = atoi(token);
+            // printf("EEEEE%lu\n", packet.total_frag);
+            token = strtok(NULL, ":");
+            packet.frag_no = atoi(token);
+            token = strtok(NULL, ":");
+            packet.size = atoi(token); 
+            
+            // if we are dealing with first packet.
+            // if(packet.frag_no == 1){
+            token = strtok(NULL, ":");
+            packet.filename = (char *)malloc(sizeof(char) * strlen(token));
+            memcpy(packet.filename, token, sizeof(token));
+                // strcpy(packet.filename, token);
+            // }
+            printf("packet total_frag: %d\n", packet.total_frag);
+            printf("packet curr frag: %d\n", packet.frag_no);
+            printf("packet curr size: %d\n", packet.size);
+            printf("packet file name: %s\n", packet.filename);
+            int result = set_cursor_filedata(packet_receive_buffer, 4);
+            int i = result, k = 0;
+            for(i = result; i <= result + packet.size; i++){
+                packet.filedata[k] = dummy_receive_buffer[i];
+                k++;
+            }
+            // if(packet.frag_no == 1){
+            if(created_fp == NULL){
+                created_fp = fopen(packet.filename, "ab");
+            }
+            int rv = fwrite(packet.filedata, 1, packet.size, created_fp);
+            
+            // }
+            // printf("packet file name: %s\n", packet.filename);
+            printf("%s\n", packet.filedata);
+            free(packet.filename);
+            memset(packet.filedata, 0, 1000);
+            if(packet.frag_no == packet.total_frag){
+                finished_receive = true;
+            }
+
+        }
+        printf("I HAVE EXITED LOL \n");
+        // free(packet.filename);
+        fclose(created_fp);
+        close(srv_socket_fd);
     }
     return 0;
 }
