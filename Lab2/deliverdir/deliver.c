@@ -1,5 +1,3 @@
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -143,6 +141,7 @@ int main(int argc, char **argv)
                 }
                 // prepare to receive a message from the server after successfully sending to the server.
                 char *text_buffer = (char *)malloc(sizeof(char) * 256);
+                char *ack_receipt = (char *)malloc(sizeof(char) * 10);
                 int numbytes;
                 struct sockaddr_storage server_end;
                 int server_end_length = sizeof(struct sockaddr_storage);
@@ -243,7 +242,7 @@ int main(int argc, char **argv)
                             packetMessage[index]=packet[i].filedata[j];
                             index++;
                         }
-                        printf("INDEX :%d\n",index);
+                        // printf("INDEX :%d\n",index);
                         packetMessage[index] = '\0';
 
                         // send the packet message here
@@ -255,6 +254,20 @@ int main(int argc, char **argv)
                             close(srv_socket_fd);
                             exit(0);
                         }
+
+                        if ((numbytes = recvfrom(srv_socket_fd, ack_receipt, 10, 0, (struct sockaddr *)&server_end, &server_end_length)) == -1)
+                        {
+                            free(file_dummy);
+                            perror("recvfrom");
+                            close(srv_socket_fd);
+                            exit(0);
+                        }
+                        char receipt[4] = {'A', 'C', 'K', '\0'};
+                        if(strcmp(ack_receipt, receipt)!=0){
+                            exit(0);
+                        }
+                        printf("ACK RECEIVED\n");
+
                     }          
 
                     fclose(fileOpen);
