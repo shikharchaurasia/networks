@@ -192,6 +192,7 @@ int main(int argc, char **argv)
                     if(size%1000==0){
                         total_frag--;
                     }
+                    // we're constructing an array of struct Packet
                     packet = (struct Packet *)malloc(total_frag * sizeof(struct Packet));
                     int currentFrag = 1;
                     int i;
@@ -229,6 +230,7 @@ int main(int argc, char **argv)
                         frag_no = count_digits(packet[i].frag_no);
                         sizeCount = count_digits(packet[i].size);
                         totalSize = staticCount+frag_no+sizeCount+4+packet[i].size;
+                        printf("TS :%d\n",totalSize);
                         char packetMessage[totalSize];
                         // total_frag + frag_no + sizeCount + colons + data + \n + 1extra
                         sprintf(packetMessage, "%d:%d:%d:%s:", packet[i].total_frag, packet[i].frag_no, packet[i].size, packet[i].filename);
@@ -241,6 +243,7 @@ int main(int argc, char **argv)
                             packetMessage[index]=packet[i].filedata[j];
                             index++;
                         }
+                        printf("INDEX :%d\n",index);
                         packetMessage[index] = '\0';
 
                         // send the packet message here
