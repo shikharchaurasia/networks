@@ -165,20 +165,6 @@ int main(int argc, char **argv)
             printf("packet curr size: %d\n", packet.size);
             printf("packet file name: %s\n", packet.filename);
             int result = set_cursor_filedata(packet_receive_buffer, 4);
-            // int counter =0;
-            // for(int u =0; u<sizeof(packet_receive_buffer);u++){
-            //     if(packet_receive_buffer[u]==':'&&counter<4){
-            //         counter++;
-            //     }
-            //     else if (counter>=4){
-            //         for(int k = 0; k<packet.size;k++){
-            //             //printf("HI I AM DYING HERE \n");
-            //             packet.filedata[k]=packet_receive_buffer[u+k]; 
-            //         }
-            //         break;
-            //     }
-
-            // }
             int i = result, k = 0;
             memcpy(packet.filedata, packet_receive_buffer+result, packet.size);
             if(created_fp == NULL){
@@ -188,7 +174,7 @@ int main(int argc, char **argv)
             
             // }
             // printf("packet file name: %s\n", packet.filename);
-            printf("%s\n", packet.filedata);
+            // printf("%s\n", packet.filedata);
             free(packet.filename);
             memset(packet.filedata, '\0', 1000);
             if(packet.frag_no == packet.total_frag){
