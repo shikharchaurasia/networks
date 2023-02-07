@@ -127,7 +127,9 @@ int main(int argc, char **argv)
         bool finished_receive = false;
         FILE *created_fp = NULL;
         while(finished_receive == false){
-            
+
+            memset(packet.filedata, '\0', 1000);
+            memset(packet_receive_buffer, '\0', 1100);
             if ((numbytes = recvfrom(srv_socket_fd, packet_receive_buffer, 1100, 0, (struct sockaddr *)&sender_info, &sender_info_size)) == -1)
             {   
                 perror("recvfrom packets\n");
@@ -163,15 +165,24 @@ int main(int argc, char **argv)
             printf("packet curr size: %d\n", packet.size);
             printf("packet file name: %s\n", packet.filename);
             int result = set_cursor_filedata(packet_receive_buffer, 4);
+            // int counter =0;
+            // for(int u =0; u<sizeof(packet_receive_buffer);u++){
+            //     if(packet_receive_buffer[u]==':'&&counter<4){
+            //         counter++;
+            //     }
+            //     else if (counter>=4){
+            //         for(int k = 0; k<packet.size;k++){
+            //             //printf("HI I AM DYING HERE \n");
+            //             packet.filedata[k]=packet_receive_buffer[u+k]; 
+            //         }
+            //         break;
+            //     }
+
+            // }
             int i = result, k = 0;
             memcpy(packet.filedata, packet_receive_buffer+result, packet.size);
-            // for(i = result; i <= result + packet.size; i++){
-            //     packet.filedata[k] = packet_receive_buffer[i];
-            //     k++;
-            // }
-            // if(packet.frag_no == 1){
             if(created_fp == NULL){
-                created_fp = fopen(packet.filename, "ab");
+                created_fp = fopen(packet.filename, "ab");      
             }
             int rv = fwrite(packet.filedata, sizeof(char), packet.size, created_fp);
             
@@ -179,10 +190,18 @@ int main(int argc, char **argv)
             // printf("packet file name: %s\n", packet.filename);
             printf("%s\n", packet.filedata);
             free(packet.filename);
-            memset(packet.filedata, 0, 1000);
+            memset(packet.filedata, '\0', 1000);
             if(packet.frag_no == packet.total_frag){
                 finished_receive = true;
             }
+            char receipt[4] = {'A', 'C', 'K', '\0'};
+            if ((numbytes = sendto(srv_socket_fd, receipt, strlen(receipt), 0, (struct sockaddr *)&sender_info, sender_info_size)) == -1)
+            {
+                perror("sendto");
+                close(srv_socket_fd);
+                exit(1);
+            }
+
 
         }
         printf("I HAVE EXITED LOL \n");
