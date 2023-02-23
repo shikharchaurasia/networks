@@ -1,3 +1,5 @@
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -152,12 +154,7 @@ int main(int argc, char **argv)
                     close(srv_socket_fd);
                     exit(0);
                 }
-                struct timeval end;
-                gettimeofday(&end, NULL);
-                time_t rtt_sec = end.tv_sec - start.tv_sec;
-                suseconds_t rtt_usec = end.tv_usec - start.tv_usec;
-                long rtt = (rtt_sec * 1000000) + rtt_usec;
-                printf("Time taken is : %ld micro seconds\n", rtt);
+                
                 char *message = "yes";
                 // if received message was yes
                 if (strcmp(text_buffer, message) == 0)
@@ -271,6 +268,12 @@ int main(int argc, char **argv)
                     }          
 
                     fclose(fileOpen);
+                    struct timeval end;
+                    gettimeofday(&end, NULL);
+                    time_t rtt_sec = end.tv_sec - start.tv_sec;
+                    suseconds_t rtt_usec = end.tv_usec - start.tv_usec;
+                    long rtt = (rtt_sec * 1000000) + rtt_usec;
+                    printf("Time taken is : %ld micro seconds\n", rtt);
                 }
                 // if received message was no
                 else
@@ -303,4 +306,5 @@ int main(int argc, char **argv)
     freeaddrinfo(server_info);
     close(srv_socket_fd);
     return 0;
+    
 }
