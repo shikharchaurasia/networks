@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <stdbool.h>
 #include <netdb.h>
+#include <time.h>
 #include <unistd.h>
 
 // main goal: to make use of UDP and send between client and server.
@@ -16,6 +17,20 @@ Shikhar Chaurasia (Student # 1006710016)
 and
 Gunin Wasan (Student # 1007147749)
 */
+
+float generate_random(){
+    // Use the current time as the seed for the random number generator
+    
+
+    // Generate a random number between 0 and RAND_MAX
+    int rand_num = rand();
+
+    // Convert the random number to a float between 0 and 1
+    float rand_float = (float)rand_num / RAND_MAX;
+    // printf("%f\n", rand_float);
+    return rand_float;
+}
+
 int set_cursor_filedata(const char *str, int n)
 {
     int cursor = 0;
@@ -41,6 +56,7 @@ struct Packet
 };
 int main(int argc, char **argv)
 {
+    srand(time(0));
     // incorrect usage of the server
     while (1)
     {
@@ -126,7 +142,9 @@ int main(int argc, char **argv)
         struct Packet packet;
         bool finished_receive = false;
         FILE *created_fp = NULL;
+        int d = 0;
         while(finished_receive == false){
+            d++;
 
             memset(packet.filedata, '\0', 1000);
             memset(packet_receive_buffer, '\0', 1100);
@@ -140,69 +158,58 @@ int main(int argc, char **argv)
             // convert the received string to packet.
             // split into: 1) total frag 2) current frag 3) packet size
             // copy the message in itself
-            
-            memcpy(dummy_receive_buffer, packet_receive_buffer, sizeof(packet_receive_buffer));
-            char *token;
-            // made use of dummy receive buffer because strtok modifies original buffer
-            token = strtok(dummy_receive_buffer, ":");
-            // printf("%s\n", token)
-            packet.total_frag = atoi(token);
-            // printf("EEEEE%lu\n", packet.total_frag);
-            token = strtok(NULL, ":");
-            packet.frag_no = atoi(token);
-            token = strtok(NULL, ":");
-            packet.size = atoi(token); 
-            
-            // if we are dealing with first packet.
-            // if(packet.frag_no == 1){
-            token = strtok(NULL, ":");
-            packet.filename = (char *)malloc(sizeof(char) * strlen(token));
-            memcpy(packet.filename, token, strlen(token));
-                // strcpy(packet.filename, token);
-            // }
-            printf("packet total_frag: %d\n", packet.total_frag);
-            printf("packet curr frag: %d\n", packet.frag_no);
-            printf("packet curr size: %d\n", packet.size);
-            printf("packet file name: %s\n", packet.filename);
-            int result = set_cursor_filedata(packet_receive_buffer, 4);
-            // int counter =0;
-            // for(int u =0; u<sizeof(packet_receive_buffer);u++){
-            //     if(packet_receive_buffer[u]==':'&&counter<4){
-            //         counter++;
-            //     }
-            //     else if (counter>=4){
-            //         for(int k = 0; k<packet.size;k++){
-            //             //printf("HI I AM DYING HERE \n");
-            //             packet.filedata[k]=packet_receive_buffer[u+k]; 
-            //         }
-            //         break;
-            //     }
-
-            // }
-            int i = result, k = 0;
-            memcpy(packet.filedata, packet_receive_buffer+result, packet.size);
-            if(created_fp == NULL){
-                created_fp = fopen(packet.filename, "ab");      
+            float res = generate_random();
+            printf("ITERATION %d: %f\n", d, res);
+            if(res > 0.01){
+                char receipt[4] = {'A', 'C', 'K', '\0'};
+                if ((numbytes = sendto(srv_socket_fd, receipt, strlen(receipt), 0, (struct sockaddr *)&sender_info, sender_info_size)) == -1)
+                {
+                    perror("sendto");
+                    close(srv_socket_fd);
+                    exit(1);
+                }
+                memcpy(dummy_receive_buffer, packet_receive_buffer, sizeof(packet_receive_buffer));
+                char *token;
+                // made use of dummy receive buffer because strtok modifies original buffer
+                token = strtok(dummy_receive_buffer, ":");
+                // printf("%s\n", token)
+                packet.total_frag = atoi(token);
+                // printf("EEEEE%lu\n", packet.total_frag);
+                token = strtok(NULL, ":");
+                packet.frag_no = atoi(token);
+                token = strtok(NULL, ":");
+                packet.size = atoi(token); 
+                
+                // if we are dealing with first packet.
+                // if(packet.frag_no == 1){
+                token = strtok(NULL, ":");
+                packet.filename = (char *)malloc(sizeof(char) * strlen(token));
+                memcpy(packet.filename, token, strlen(token));
+                    // strcpy(packet.filename, token);
+                // }
+                // printf("packet total_frag: %d\n", packet.total_frag);
+                // printf("packet curr frag: %d\n", packet.frag_no);
+                // printf("packet curr size: %d\n", packet.size);
+                // printf("packet file name: %s\n", packet.filename);
+                int result = set_cursor_filedata(packet_receive_buffer, 4);
+                memcpy(packet.filedata, packet_receive_buffer+result, packet.size);
+                if(created_fp == NULL){
+                    created_fp = fopen(packet.filename, "ab");      
+                }
+                int rv = fwrite(packet.filedata, sizeof(char), packet.size, created_fp);
+                
+                // }
+                // printf("packet file name: %s\n", packet.filename);
+                // printf("%s\n", packet.filedata);
+                free(packet.filename);
+                memset(packet.filedata, '\0', 1000);
+                if(packet.frag_no == packet.total_frag){
+                    finished_receive = true;
+                }
             }
-            int rv = fwrite(packet.filedata, sizeof(char), packet.size, created_fp);
             
-            // }
-            // printf("packet file name: %s\n", packet.filename);
-            printf("%s\n", packet.filedata);
-            free(packet.filename);
-            memset(packet.filedata, '\0', 1000);
-            if(packet.frag_no == packet.total_frag){
-                finished_receive = true;
-            }
-            char receipt[4] = {'A', 'C', 'K', '\0'};
-            if ((numbytes = sendto(srv_socket_fd, receipt, strlen(receipt), 0, (struct sockaddr *)&sender_info, sender_info_size)) == -1)
-            {
-                perror("sendto");
-                close(srv_socket_fd);
-                exit(1);
-            }
-
-
+            
+            
         }
         printf("I HAVE EXITED LOL \n");
         // free(packet.filename);
