@@ -354,8 +354,8 @@ int main(int argc, char **argv)
                                 printf("Error: setsockopt\n");
                                 exit(1);
                             }
-                            printf("Sample RTT: %ld seconds\n", total_microseconds_sample);
-                            printf("Estimated RTT: %ld seconds\n", total_microseconds_est);
+                            printf("Sample RTT: %ld microseconds\n", total_microseconds_sample);
+                            printf("Estimated RTT: %ld microseconds\n", total_microseconds_est);
 
                         }
                         
