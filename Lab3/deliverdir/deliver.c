@@ -10,6 +10,11 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <math.h>
+
+// constants used for the estimated RTT
+#define ALPHA 0.125
+#define BETA 0.25
 
 // main goal: to make use of UDP and send between client and server.
 /*
@@ -27,6 +32,30 @@ struct Packet
     char *filename;
     char filedata[1000];
 };
+
+int timeval_subtract (struct timeval *result, struct timeval *x,struct timeval  *y)  
+{  
+  /* Perform the carry for the later subtraction by updating y. */  
+  if (x->tv_usec < y->tv_usec) {  
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;  
+    y->tv_usec -= 1000000 * nsec;  
+    y->tv_sec += nsec;  
+  }  
+  if (x->tv_usec - y->tv_usec > 1000000) {  
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000;  
+    y->tv_usec += 1000000 * nsec;  
+    y->tv_sec -= nsec;  
+  }  
+  
+  /* Compute the time remaining to wait.
+     tv_usec is certainly positive. */  
+  result->tv_sec = x->tv_sec - y->tv_sec;  
+  result->tv_usec = x->tv_usec - y->tv_usec;  
+  
+  /* Return 1 if result is negative. */  
+  return x->tv_sec < y->tv_sec;  
+}
+
 // function to count number of digits to send as a packet
 int count_digits(int number){
     int c= 0;
@@ -105,8 +134,6 @@ int main(int argc, char **argv)
         strcpy(file_dummy, protocol_file + 3);
         // null terminate.
         file_dummy[strlen(protocol_file)] = '\0';
-        // printf("%s\n", file_dummy);
-        // printf("%d\n", strlen(file_dummy));
         // apply strtok to deal with singular ftp inputs or ftp with just spaces.
         char *token;
         token = strtok(file_dummy, " \t\n\0");
@@ -117,8 +144,7 @@ int main(int argc, char **argv)
             free(file_dummy);
             exit(0);
         }
-        // printf("%s\n", token);
-        // printf("%d\n", strlen(token));
+
         // if not only space/enter, then length of token > 0
         if (strlen(token) > 0)
         {
@@ -127,10 +153,6 @@ int main(int argc, char **argv)
             // checks if the file_name exists or not.
             if (does_file_exist(file_name) == true)
             {
-                // send protocol (ftp) to the server
-                struct timeval start;
-                gettimeofday(&start, NULL);
-
                 if (sendto(srv_socket_fd, protocol, strlen(protocol), 0, server_info->ai_addr, server_info->ai_addrlen) == -1)
                 {
                     perror("sendto\n");
@@ -139,6 +161,9 @@ int main(int argc, char **argv)
                     close(srv_socket_fd);
                     exit(0);
                 }
+                // send protocol (ftp) to the server
+                struct timeval start_conn;
+                gettimeofday(&start_conn, NULL);
                 // prepare to receive a message from the server after successfully sending to the server.
                 char *text_buffer = (char *)malloc(sizeof(char) * 256);
                 char *ack_receipt = (char *)malloc(sizeof(char) * 10);
@@ -152,12 +177,12 @@ int main(int argc, char **argv)
                     close(srv_socket_fd);
                     exit(0);
                 }
-                struct timeval end;
-                gettimeofday(&end, NULL);
-                time_t rtt_sec = end.tv_sec - start.tv_sec;
-                suseconds_t rtt_usec = end.tv_usec - start.tv_usec;
+                struct timeval end_conn;
+                gettimeofday(&end_conn, NULL);
+                time_t rtt_sec = end_conn.tv_sec - start_conn.tv_sec;
+                suseconds_t rtt_usec = end_conn.tv_usec - start_conn.tv_usec;
                 long rtt = (rtt_sec * 1000000) + rtt_usec;
-                printf("Time taken is : %ld micro seconds\n", rtt);
+                printf("Time taken to set up connection is : %ld micro seconds\n", rtt);
                 char *message = "yes";
                 // if received message was yes
                 if (strcmp(text_buffer, message) == 0)
@@ -222,14 +247,36 @@ int main(int argc, char **argv)
                     int totalSize;
                     int frag_no;
                     int sizeCount;
+                    // initialization for the formula used for timeout later on
+                    struct timeval est_rtt;
+                    struct timeval sample_rtt;
+                    struct timeval dev_rtt;
 
-                     for (i = 0; i < total_frag; i++) {
+                    est_rtt.tv_sec = 0;
+                    sample_rtt.tv_sec = 0;
+                    dev_rtt.tv_sec = 0;
+                    est_rtt.tv_usec = 0;
+                    sample_rtt.tv_usec = 0;
+                    dev_rtt.tv_usec = 0;
+                    
+                    // initializiation of timeout to be 1 seconds (RFC-6928)
+                    struct timeval timeout;
+                    timeout.tv_sec = 1;
+                    timeout.tv_usec = 0;
+                    // https://linux.die.net/man/3/setsockopt - set the timeout to the timeout params defined above.
+                    // socket receives a timeval struct of the default timeout value we have set above.
+                    if(setsockopt(srv_socket_fd, SOL_SOCKET, SO_RCVTIMEO, (const void *)&timeout, sizeof(timeout)) < 0){
+                        printf("Error: setsockopt\n");
+                        exit(1);
+                    }
+                    bool resent = false;
+
+                    for (i = 0; i < total_frag; i++) {
                         
                         // we need to calculate the total size of the packet message
                         frag_no = count_digits(packet[i].frag_no);
                         sizeCount = count_digits(packet[i].size);
                         totalSize = staticCount+frag_no+sizeCount+4+packet[i].size;
-                        printf("TS :%d\n",totalSize);
                         char packetMessage[totalSize];
                         // total_frag + frag_no + sizeCount + colons + data + \n + 1extra
                         sprintf(packetMessage, "%d:%d:%d:%s:", packet[i].total_frag, packet[i].frag_no, packet[i].size, packet[i].filename);
@@ -245,8 +292,6 @@ int main(int argc, char **argv)
                         // printf("INDEX :%d\n",index);
                         packetMessage[index] = '\0';
 
-                        // send the packet message here
-
                         if (sendto(srv_socket_fd, packetMessage, totalSize, 0, server_info->ai_addr, server_info->ai_addrlen) == -1)
                         {
                             perror("sendto\n");
@@ -254,19 +299,67 @@ int main(int argc, char **argv)
                             close(srv_socket_fd);
                             exit(0);
                         }
-
+                        // send the packet message here
+                        struct timeval start;
+                        gettimeofday(&start, NULL);
                         if ((numbytes = recvfrom(srv_socket_fd, ack_receipt, 10, 0, (struct sockaddr *)&server_end, &server_end_length)) == -1)
                         {
-                            free(file_dummy);
-                            perror("recvfrom");
-                            close(srv_socket_fd);
-                            exit(0);
+                            perror("recvfrom: timeout in receiving ACK");
+                            i--;
+                            resent = true;
+                            continue;
                         }
+                        struct timeval end;
+                        gettimeofday(&end, NULL);
+                        time_t rtt_sec = end.tv_sec - start.tv_sec;
+                        suseconds_t rtt_usec = end.tv_usec - start.tv_usec;
+                        long rtt = (rtt_sec * 1000000) + rtt_usec;
+                        // printf("Time taken to receive ACK/NACK packet is : %ld micro seconds\n", rtt);
                         char receipt[4] = {'A', 'C', 'K', '\0'};
                         if(strcmp(ack_receipt, receipt)!=0){
-                            exit(0);
+                            perror("did not receive ACK - resending.\n");
+                            i--;
+                            resent = true;
+                            continue;
                         }
-                        printf("ACK RECEIVED\n");
+                        // printf("ACK RECEIVED\n");
+                        if(resent == false){
+                            timeval_subtract(&sample_rtt, &end, &start);
+
+                            long total_microseconds_sample =  (sample_rtt.tv_sec * 1000000) + sample_rtt.tv_usec;
+                            long total_microseconds_est = (est_rtt.tv_sec * 1000000) + est_rtt.tv_usec;
+                            total_microseconds_est = total_microseconds_est * (1-ALPHA) + ALPHA * total_microseconds_sample;
+
+                            est_rtt.tv_sec = (int)((total_microseconds_est)/1000000);
+                            est_rtt.tv_usec = total_microseconds_est % 1000000;
+
+                            long total_microseconds_dev = (dev_rtt.tv_sec * 1000000) + dev_rtt.tv_usec;
+                            total_microseconds_est = (est_rtt.tv_sec * 1000000) + est_rtt.tv_usec;
+                            total_microseconds_sample =  (sample_rtt.tv_sec * 1000000) + sample_rtt.tv_usec;
+                            total_microseconds_dev = total_microseconds_dev * (1-BETA) + BETA * fabs(total_microseconds_sample - total_microseconds_est);
+
+                            dev_rtt.tv_sec = (int)((total_microseconds_est)/1000000);
+                            dev_rtt.tv_usec = total_microseconds_est % 1000000;
+
+
+
+                            total_microseconds_dev = (dev_rtt.tv_sec * 1000000) + dev_rtt.tv_usec;
+                            total_microseconds_est = (est_rtt.tv_sec * 1000000) + est_rtt.tv_usec;
+                            long total_microseconds_timeout = total_microseconds_est + 4 * total_microseconds_dev;
+
+                            timeout.tv_sec = (int)((total_microseconds_timeout)/1000000);
+                            timeout.tv_usec = total_microseconds_timeout % 1000000;
+                            
+                            if(setsockopt(srv_socket_fd, SOL_SOCKET, SO_RCVTIMEO, (const void *)&timeout, sizeof(timeout)) < 0){
+                                printf("Error: setsockopt\n");
+                                exit(1);
+                            }
+                            printf("Sample RTT: %ld seconds\n", total_microseconds_sample);
+                            printf("Estimated RTT: %ld seconds\n", total_microseconds_est);
+
+                        }
+                        
+                        
 
                     }          
 
