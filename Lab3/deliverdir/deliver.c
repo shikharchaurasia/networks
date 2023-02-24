@@ -23,7 +23,7 @@ Shikhar Chaurasia (Student # 1006710016)
 and
 Gunin Wasan (Student # 1007147749)
 */
-
+int resent_flags[500000] = {0};
 struct Packet
 {
     unsigned int total_frag;
@@ -269,9 +269,12 @@ int main(int argc, char **argv)
                         printf("Error: setsockopt\n");
                         exit(1);
                     }
-                    bool resent = false;
+                    // bool resent = false;
 
                     for (i = 0; i < total_frag; i++) {
+                        if(resent_flags[i] == 1){
+                            printf("I RESEND \n");
+                        }
                         
                         // we need to calculate the total size of the packet message
                         frag_no = count_digits(packet[i].frag_no);
@@ -304,9 +307,10 @@ int main(int argc, char **argv)
                         gettimeofday(&start, NULL);
                         if ((numbytes = recvfrom(srv_socket_fd, ack_receipt, 10, 0, (struct sockaddr *)&server_end, &server_end_length)) == -1)
                         {
-                            perror("recvfrom: timeout in receiving ACK");
+                            // perror("recvfrom: timeout in receiving ACK");
+                            printf("PACKET DROP - continuing \n");
+                            resent_flags[i] = 1;
                             i--;
-                            resent = true;
                             continue;
                         }
                         struct timeval end;
@@ -318,16 +322,21 @@ int main(int argc, char **argv)
                         char receipt[4] = {'A', 'C', 'K', '\0'};
                         if(strcmp(ack_receipt, receipt)!=0){
                             perror("did not receive ACK - resending.\n");
+                            resent_flags[i] = 1;
                             i--;
-                            resent = true;
                             continue;
                         }
                         // printf("ACK RECEIVED\n");
-                        if(resent == false){
+                        if(resent_flags[i] == 0){
                             timeval_subtract(&sample_rtt, &end, &start);
-
                             long total_microseconds_sample =  (sample_rtt.tv_sec * 1000000) + sample_rtt.tv_usec;
                             long total_microseconds_est = (est_rtt.tv_sec * 1000000) + est_rtt.tv_usec;
+                            if(i == 0){
+                                total_microseconds_est = total_microseconds_sample;
+                                est_rtt.tv_sec = (int)((total_microseconds_est)/1000000);
+                                est_rtt.tv_usec = total_microseconds_est % 1000000; 
+
+                            }
                             total_microseconds_est = total_microseconds_est * (1-ALPHA) + ALPHA * total_microseconds_sample;
 
                             est_rtt.tv_sec = (int)((total_microseconds_est)/1000000);
@@ -354,13 +363,12 @@ int main(int argc, char **argv)
                                 printf("Error: setsockopt\n");
                                 exit(1);
                             }
-                            printf("Sample RTT: %ld microseconds\n", total_microseconds_sample);
-                            printf("Estimated RTT: %ld microseconds\n", total_microseconds_est);
+                            // printf("Sample RTT: %ld microseconds\n", total_microseconds_sample);
+                            // printf("Estimated RTT: %ld microseconds\n", total_microseconds_est);
+                            printf("Timeout %d RTT: %ld microseconds\n", i, total_microseconds_timeout);
+                            
 
                         }
-                        
-                        
-
                     }          
 
                     fclose(fileOpen);
