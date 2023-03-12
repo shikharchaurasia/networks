@@ -19,6 +19,7 @@ Gunin Wasan (Student # 1007147749)
 int main(int argc, char **argv)
 {
     // incorrect usage of the server
+    int client_id = 0;
     while (1)
     {
         if (argc != 2)
@@ -86,11 +87,18 @@ int main(int argc, char **argv)
         }        
 
         char *msg = "recvACK";
-        if (send(deliver_socket_fd, msg, strlen(msg), 0) == -1) {
+        client_id++;
+        char client_id_str[20];
+        sprintf(client_id_str, "%d", client_id);
+
+        // if (send(deliver_socket_fd, msg, strlen(msg), 0) == -1) {
+        //     perror("send");
+        //     exit(1);
+        // }
+        if (send(deliver_socket_fd, client_id_str, strlen(client_id_str), 0) == -1) {
             perror("send");
             exit(1);
         }
-
         printf("Client 1: %s\n", text_buffer);
         free(text_buffer);
         close(srv_socket_fd);

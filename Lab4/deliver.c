@@ -68,7 +68,7 @@ int main(int argc, char **argv)
         char *message = (char *)malloc(sizeof(char) * 1024);
         printf("Enter text message: ");
         fgets(message, 1024, stdin);
-
+        
         if (send(srv_socket_fd, message, 1024, 0) == -1)
         {
             perror("send");
