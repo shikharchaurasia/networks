@@ -9,13 +9,48 @@
 #include <netdb.h>
 #include <unistd.h>
 
-struct user_info{
-    char username[25];
-    char password[20];
+struct message {
+    unsigned int type;
+    unsigned int size;
+    unsigned char source[MAX_NAME];
+    unsigned char data[MAX_DATA];
 };
 
-// struct user_info users[5]
 
+typedef struct user_info{
+    char username[25];
+    char password[20];
+} Username_PW;
+
+Username_PW users[5];
+
+users[0] = {"gunin", "wasan"};
+users[1] = {"shikhar", "chaurasia"};
+users[2] = {"shaheryar", "arshad"};
+users[3] = {"ali", "gardezi"};
+users[4] = {"gandharv", "nagrani"};
+
+int user_status[5] = {0, 0, 0, 0, 0};
+
+int sessions [5] = {0, 0, 0, 0, 0};
+
+typedef struct messagepacket{
+    char command_text; 
+    char arguments[4][200];
+    int count;
+} MessagePacket;
+
+MessagePacket parse_received_message(char *rcv_message){
+    int count = 0;
+    int i = 0;
+    MessagePacket parsed_message = {0};
+    char *token = strtok(rcv_message, " ");
+    strcpy
+    count++;
+    while(token != NULL){
+
+    }
+}
 // main goal: to make use of TCP and send between client and server.
 /*
 Done by:
