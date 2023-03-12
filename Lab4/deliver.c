@@ -65,12 +65,11 @@ int main(int argc, char **argv)
     }
     // socket creation was successful
     
-        char *message = (char *)malloc(sizeof(char) * 256);
+        char *message = (char *)malloc(sizeof(char) * 1024);
         printf("Enter text message: ");
-        scanf("%ms", &message);
-        printf("Size of message: %ld\n", strlen(message));
+        fgets(message, 1024, stdin);
 
-        if (send(srv_socket_fd, message, 100000, 0) == -1)
+        if (send(srv_socket_fd, message, 1024, 0) == -1)
         {
             perror("send");
             exit(1);

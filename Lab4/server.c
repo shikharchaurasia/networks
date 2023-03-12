@@ -73,12 +73,12 @@ int main(int argc, char **argv)
         // sender's information - used in recv
         // struct sockaddr_storage sender_info;
         // int sender_info_size = sizeof(struct sockaddr_storage);
-        char *text_buffer = (char *)malloc(sizeof(char) * 256);
+        char *text_buffer = (char *)malloc(sizeof(char) * 1024);
         int numbytes;
 
         int receivedBytes = 0;
-
-        if (((numbytes = recv(deliver_socket_fd, text_buffer, 100000, 0)) == -1))
+    
+        if (((numbytes = recv(deliver_socket_fd, text_buffer, 1024, 0)) == -1))
         {
             perror("recv");
             close(srv_socket_fd);
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
             exit(1);
         }
 
-        printf("Response: %s\n", text_buffer);
+        printf("Client 1: %s\n", text_buffer);
         free(text_buffer);
         close(srv_socket_fd);
     }
