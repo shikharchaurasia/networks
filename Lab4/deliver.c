@@ -21,7 +21,8 @@ Gunin Wasan (Student # 1007147749)
 
 int main(int argc, char **argv)
 {
-    
+    while(1){
+        
     // incorrect usage of the client
     if (argc != 3)
     {
@@ -64,9 +65,10 @@ int main(int argc, char **argv)
     }
     // socket creation was successful
     
-        char *message = NULL;
+        char *message = (char *)malloc(sizeof(char) * 256);
         printf("Enter text message: ");
         scanf("%ms", &message);
+        printf("Size of message: %ld\n", strlen(message));
 
         if (send(srv_socket_fd, message, 100000, 0) == -1)
         {
@@ -77,6 +79,6 @@ int main(int argc, char **argv)
 
         freeaddrinfo(server_info);
         close(srv_socket_fd);
-    
+    }
     return 0;
 }

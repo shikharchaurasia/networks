@@ -68,7 +68,7 @@ int main(int argc, char **argv)
             exit(1);
         }
         freeaddrinfo(server_info);
-        printf("Server running on port: %d\n", port_number);
+        // printf("Server running on port: %d\n", port_number);
         int deliver_socket_fd = accept(srv_socket_fd, NULL, NULL);
         // sender's information - used in recv
         // struct sockaddr_storage sender_info;
@@ -78,23 +78,22 @@ int main(int argc, char **argv)
 
         int receivedBytes = 0;
 
-        if ((numbytes = recv(deliver_socket_fd, text_buffer, 100000, 0) == -1))
+        if (((numbytes = recv(deliver_socket_fd, text_buffer, 100000, 0)) == -1))
         {
             perror("recv");
             close(srv_socket_fd);
             exit(1);
         }        
 
-        char *message = "recvACK";
-        if (send(deliver_socket_fd, message, strlen(message), 0) == -1) {
+        char *msg = "recvACK";
+        if (send(deliver_socket_fd, msg, strlen(msg), 0) == -1) {
             perror("send");
             exit(1);
         }
 
         printf("Response: %s\n", text_buffer);
-
-        close(srv_socket_fd);
         free(text_buffer);
+        close(srv_socket_fd);
     }
     return 0;
 }
