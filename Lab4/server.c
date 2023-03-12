@@ -161,6 +161,8 @@ int main(int argc, char **argv)
                                 }
                             }
                         }
+                        printf("%s\n", text_buffer);
+
                     }
                 } // END handle data from client
             } // END got new incoming connection
