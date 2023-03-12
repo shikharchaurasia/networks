@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <pthread.h>
 
 // main goal: to make use of UDP and send between client and server.
 /*
@@ -19,75 +20,117 @@ and
 Gunin Wasan (Student # 1007147749)
 */
 
+void* sendThread(void* sendSocket); // thread for sending a message
+void* rcvThread(void* rcvSocket); // thread for receiving a message
+
 int main(int argc, char **argv)
 {
+
+    // incorrect usage of the client
+    if (argc != 3)
+    {
+        fprintf(stderr, "client usage: client <server address> <tcp port num>\n");
+        exit(0);
+    }
+    // initialization of variables
+    // int port_number = atoi(argv[1]);
+    int srv_socket_fd;
+    struct addrinfo hints;
+    struct addrinfo *server_info, *p;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;       // set to AF_INET to use IPv4
+    hints.ai_socktype = SOCK_STREAM; // for (TCP)
+    // do a dns lookup and get the ip addresses in the form of a linked list stored into server_info
+    if ((getaddrinfo(argv[1], argv[2], &hints, &server_info)) != 0)
+    {
+        fprintf(stderr, "getaddrinfo\n");
+        exit(2);
+    }
+    // iterate thru the linked list and create a socket
+    for (p = server_info; p != NULL; p = p->ai_next)
+    {
+        if ((srv_socket_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+        {
+            perror("socket");
+            continue;
+        }
+        if (connect(srv_socket_fd, p->ai_addr, p->ai_addrlen) == -1)
+        {
+            close(srv_socket_fd);
+            perror("connect");
+            continue;
+        }
+        break;
+    }
+    if (p == NULL)
+    {
+        perror("socket\n");
+        exit(0);
+    }
+    // socket creation was successful
+
+    pthread_t receiving; //  receiving thread
+    pthread_t sending; //  seding thread
+
+    //  Now we will create a receiving thread, 
+    // here rcvThread is the function that handles receiving messages parallely
+    if (pthread_create(&receiving, NULL, rcvThread, (void*) &srv_socket_fd) != 0) {
+        // error in receiving thread
+        perror("receiving thread");
+        exit(1);
+    }
+
+    //  Then we will create a sending thread
+    // here sendThread is the function that handles sending messages parallely
+    if (pthread_create(&sending, NULL, sendThread, (void*) &srv_socket_fd) != 0) {
+        // error in sending thread
+        perror("sending thread");
+        exit(1);
+    }
     
-
-        // incorrect usage of the client
-        if (argc != 3)
-        {
-            fprintf(stderr, "client usage: deliver <server address> <tcp port num>\n");
-            exit(0);
-        }
-        // initialization of variables
-        int port_number = atoi(argv[1]);
-        int srv_socket_fd;
-        struct addrinfo hints;
-        struct addrinfo *server_info, *p;
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_INET;       // set to AF_INET to use IPv4
-        hints.ai_socktype = SOCK_STREAM; // for (TCP)
-        // do a dns lookup and get the ip addresses in the form of a linked list stored into server_info
-        if ((getaddrinfo(argv[1], argv[2], &hints, &server_info)) != 0)
-        {
-            fprintf(stderr, "getaddrinfo\n");
-            exit(2);
-        }
-        // iterate thru the linked list and create a socket
-        for (p = server_info; p != NULL; p = p->ai_next)
-        {
-            if ((srv_socket_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
-            {
-                perror("socket");
-                continue;
-            }
-            if (connect(srv_socket_fd, p->ai_addr, p->ai_addrlen) == -1)
-            {
-                close(srv_socket_fd);
-                perror("connect");
-                continue;
-            }
-            break;
-        }
-        if (p == NULL)
-        {
-            perror("socket\n");
-            exit(0);
-        }
-        // socket creation was successful
-        while (1)
-        {
-            char *message = (char *)malloc(sizeof(char) * 1024);
-            char text_buffer[1024];
-
-            if (recv(srv_socket_fd, text_buffer, sizeof(text_buffer), 0) == -1) {
-                perror("recv");
-                exit(1);
-            }
-            printf("Enter text message: ");
-            fgets(message, 1024, stdin);
-            if (send(srv_socket_fd, message, 1024, 0) == -1)
-            {
-                perror("send");
-                exit(1);
-            }
-            
-            printf("%s\n",text_buffer);
-
-            free(message);
-        }
-        close(srv_socket_fd);
-        freeaddrinfo(server_info);
+    pthread_join(receiving, NULL);
+    pthread_join(sending, NULL);
+    close(srv_socket_fd);
+    freeaddrinfo(server_info);
 
     return 0;
+}
+
+void* sendThread(void* sendSocket) {
+    int srv_socket_fd = *((int*)sendSocket);
+    char *message = (char *)malloc(sizeof(char) * 1024);
+
+    while (1) {
+        // printf("Enter text message: ");
+        fgets(message, 1024, stdin);
+        if (send(srv_socket_fd, message, 1024, 0) == -1)
+        {
+            perror("send");
+            exit(1);
+        }
+    }
+
+    free(message);
+    pthread_exit(NULL); // indicates thread end
+}
+
+void* rcvThread(void* rcvSocket) {
+    int srv_socket_fd = *((int*)rcvSocket);
+    char text_buffer[1024];
+
+    while (1) {
+        int rv = recv(srv_socket_fd, text_buffer, sizeof(text_buffer), 0);
+        if (rv == -1) {
+            perror("recv");
+            exit(1);
+        }
+        else if(rv != 0){
+            printf("%s\n",text_buffer);
+        }
+        else{
+            printf("Server ended: Thank you for using the Text Conferencing Channel!\n");
+            exit(0);
+        }
+    }
+    pthread_exit(NULL); // indicates thread end
 }
