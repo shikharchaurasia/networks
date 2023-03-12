@@ -2,11 +2,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+
+struct user_info{
+    char username[25];
+    char password[20];
+};
+
+// struct user_info users[5]
 
 // main goal: to make use of TCP and send between client and server.
 /*
@@ -16,92 +24,182 @@ and
 Gunin Wasan (Student # 1007147749)
 */
 
+void *get_in_addr(struct sockaddr *sa)
+{
+    if (sa->sa_family == AF_INET) 
+    {
+        return &(((struct sockaddr_in*)sa)->sin_addr);
+    }
+
+    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
 int main(int argc, char **argv)
 {
-    // incorrect usage of the server
+    
+    fd_set master;      //master fd list
+    fd_set read_fds;    //temp file descriptor list for select()
+    int fdmax;      //max file descriptor number
+    int newfd;      //newly accept()ed socket descriptor
+
     int client_id = 0;
+    // incorrect usage of the server
+    if (argc != 2)
+    {
+        fprintf(stderr, "server usage: server <tcp port number>\n");
+        exit(0);
+    }
+    int port_number = atoi(argv[1]);
+    int yes = 1;
+    int srv_socket_fd; //this is our listener fd
+    struct addrinfo hints;
+    struct addrinfo *server_info, *p;
+    // hints: indicates the protocols and socket types required.
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET; // set to AF_INET to use IPv4
+    hints.ai_socktype = SOCK_STREAM; // TCP here
+    hints.ai_flags = AI_PASSIVE; // use my IP
+    // used for DNS lookup - returns ip address witin server_info using the port number.
+    if ((getaddrinfo(NULL, argv[1], &hints, &server_info)) != 0)
+    {
+        fprintf(stderr, "getaddrinfo\n");
+        exit(2);
+    }
+    for (p = server_info; p != NULL; p = p->ai_next)
+    {
+        if ((srv_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+        {
+            perror("listener: socket");
+            continue;
+        }
+        setsockopt(srv_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+        if (bind(srv_socket_fd, p->ai_addr, p->ai_addrlen) == -1)
+        {
+            close(srv_socket_fd);
+            perror("listener: bind");
+            continue;
+        }
+        break;
+    }
+    if (p == NULL)
+    {
+        fprintf(stderr, "socket: error creating socket\n");
+        exit(1);
+    }
+
+    if (listen(srv_socket_fd, 10) == -1){
+        perror("listen");
+        close(srv_socket_fd);
+        exit(1);
+    }
+    
+    freeaddrinfo(server_info);
+    FD_ZERO(&master);
+    FD_SET(srv_socket_fd, &master);
+    fdmax = srv_socket_fd;
+    printf("Server running on port: %d\n", port_number);
+    struct sockaddr_storage sender_info;
+    socklen_t addrlen;
+    char text_buffer[1024];
+    int nbytes;
     while (1)
     {
-        if (argc != 2)
-        {
-            fprintf(stderr, "server usage: server <tcp port number>\n");
-            exit(0);
-        }
-        int port_number = atoi(argv[1]);
-        int srv_socket_fd;
-        struct addrinfo hints;
-        struct addrinfo *server_info, *p;
-        // hints: indicates the protocols and socket types required.
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_INET; // set to AF_INET to use IPv4
-        hints.ai_socktype = SOCK_STREAM; // TCP here
-        hints.ai_flags = AI_PASSIVE; // use my IP
-        // used for DNS lookup - returns ip address witin server_info using the port number.
-        if ((getaddrinfo(NULL, argv[1], &hints, &server_info)) != 0)
-        {
-            fprintf(stderr, "getaddrinfo\n");
-            exit(2);
-        }
-        for (p = server_info; p != NULL; p = p->ai_next)
-        {
-            if ((srv_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-            {
-                perror("listener: socket");
-                continue;
-            }
-            if (bind(srv_socket_fd, p->ai_addr, p->ai_addrlen) == -1)
-            {
-                close(srv_socket_fd);
-                perror("listener: bind");
-                continue;
-            }
-            if (listen(srv_socket_fd, 10) == -1)
-            {
-                perror("listen");
-                close(srv_socket_fd);
-                exit(1);
-            }
-            break;
-        }
-        if (p == NULL)
-        {
-            fprintf(stderr, "socket: error creating socket\n");
-            exit(1);
-        }
-        freeaddrinfo(server_info);
-        // printf("Server running on port: %d\n", port_number);
-        int deliver_socket_fd = accept(srv_socket_fd, NULL, NULL);
-        // sender's information - used in recv
-        // struct sockaddr_storage sender_info;
-        // int sender_info_size = sizeof(struct sockaddr_storage);
-        char *text_buffer = (char *)malloc(sizeof(char) * 1024);
-        int numbytes;
+        read_fds = master; // copy it
 
-        int receivedBytes = 0;
+
+        if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
+            perror("select");
+            exit(4);
+        }
+
+        int i, j;
+        // run through the existing connections looking for data to read
+        for(i = 0; i <= fdmax; i++) {
+            if (FD_ISSET(i, &read_fds)) { // we got one!!
+                if (i == srv_socket_fd) {
+                    // handle new connections
+                    addrlen = sizeof sender_info;
+                    newfd = accept(srv_socket_fd, (struct sockaddr *)&sender_info, &addrlen);
+
+                    if (newfd == -1) {
+                        perror("accept");
+                    } 
+                    
+                    else {
+                        FD_SET(newfd, &master); // add to master set
+                        if (newfd > fdmax) {    // keep track of the max
+                            fdmax = newfd;
+                        }
+                        printf("selectserver: new connection\n");
+                            // inet_ntop(sender_info.ss_family, get_in_addr((struct sockaddr*)&sender_info),remoteIP, INET6_ADDRSTRLEN), newfd);
+                    }
+                } 
+                else {
+                    // handle data from a client
+                    if ((nbytes = recv(i, text_buffer, sizeof text_buffer, 0)) <= 0) {
+                        // got error or connection closed by client
+                        printf("%s\n", text_buffer);
+                        if (nbytes == 0) {
+                            // connection closed
+                            printf("selectserver: socket %d hung up\n", i);
+                        } else {
+                            perror("recv");
+                        }
+                        close(i); // bye!
+                        FD_CLR(i, &master); // remove from master set
+                    } 
+                    else {
+                        // we got some data from a client
+                        for(j = 0; j <= fdmax; j++) {
+                            // send to everyone!
+                            if (FD_ISSET(j, &master)) {
+                                // except the listener and ourselves
+                                if (j != srv_socket_fd && j != i) {
+                                    if (send(j, text_buffer, nbytes, 0) == -1) {
+                                        perror("send");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } // END handle data from client
+            } // END got new incoming connection
+        } // END looping through file descriptors
+
+        // int deliver_socket_fd = accept(srv_socket_fd, NULL, NULL);
+        // // sender's information - used in recv
+        // // struct sockaddr_storage sender_info;
+        // // int sender_info_size = sizeof(struct sockaddr_storage);
+        // char *text_buffer = (char *)malloc(sizeof(char) * 1024);
+        // int numbytes;
+
+        // int receivedBytes = 0;
     
-        if (((numbytes = recv(deliver_socket_fd, text_buffer, 1024, 0)) == -1))
-        {
-            perror("recv");
-            close(srv_socket_fd);
-            exit(1);
-        }        
+        // if (((numbytes = recv(deliver_socket_fd, text_buffer, 1024, 0)) == -1))
+        // {
+        //     perror("recv");
+        //     close(srv_socket_fd);
+        //     exit(1);
+        // }        
 
-        char *msg = "recvACK";
-        client_id++;
-        char client_id_str[20];
-        sprintf(client_id_str, "%d", client_id);
+        // char *msg = "recvACK";
+        // client_id++;
+        // char client_id_str[20];
+        // sprintf(client_id_str, "%d", client_id);
 
-        // if (send(deliver_socket_fd, msg, strlen(msg), 0) == -1) {
+        // // if (send(deliver_socket_fd, msg, strlen(msg), 0) == -1) {
+        // //     perror("send");
+        // //     exit(1);
+        // // }
+        // if (send(deliver_socket_fd, client_id_str, strlen(client_id_str), 0) == -1) {
         //     perror("send");
         //     exit(1);
         // }
-        if (send(deliver_socket_fd, client_id_str, strlen(client_id_str), 0) == -1) {
-            perror("send");
-            exit(1);
-        }
-        printf("Client 1: %s\n", text_buffer);
-        free(text_buffer);
-        close(srv_socket_fd);
+        // printf("Client 1: %s\n", text_buffer);
+        // free(text_buffer);
+        // printf("Closing socket. \n");
+        // close(deliver_socket_fd);
+        // printf("Client Socket Disconnected.\n");
     }
     return 0;
 }
