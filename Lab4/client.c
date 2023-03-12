@@ -25,6 +25,9 @@
 #define MESSAGE 11
 #define QUERY 12
 #define QU_ACK 13
+#define LOGOUT 14
+#define CREATE_SESS 15
+#define LIST 16
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -127,6 +130,7 @@ void* sendThread(void* sendSocket) {
     while (1) {
         // printf("Enter text message: ");
         fgets(message, 1024, stdin);
+        // printf("first = %s \n", message[0]);
         if (send(srv_socket_fd, message, 1024, 0) == -1)
         {
             perror("send");
@@ -149,7 +153,7 @@ void* rcvThread(void* rcvSocket) {
             exit(1);
         }
         else if(rv != 0){
-            printf("%s\n",text_buffer);
+            printf("\n%s\n",text_buffer);
         }
         else{
             printf("Server ended: Thank you for using the Text Conferencing Channel!\n");
