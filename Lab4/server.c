@@ -34,18 +34,12 @@ struct message {
 };
 
 
-typedef struct user_info{
+struct user_info{
     char username[25];
     char password[20];
-} Username_PW;
+};
 
-Username_PW users[5];
 
-users[0] = {"gunin", "wasan"};
-users[1] = {"shikhar", "chaurasia"};
-users[2] = {"shaheryar", "arshad"};
-users[3] = {"ali", "gardezi"};
-users[4] = {"gandharv", "nagrani"};
 
 int user_status[5] = {0, 0, 0, 0, 0};
 
@@ -57,17 +51,17 @@ typedef struct messagepacket{
     int count;
 } MessagePacket;
 
-MessagePacket parse_received_message(char *rcv_message){
-    int count = 0;
-    int i = 0;
-    MessagePacket parsed_message = {0};
-    char *token = strtok(rcv_message, " ");
-    strcpy
-    count++;
-    while(token != NULL){
+// MessagePacket parse_received_message(char *rcv_message){
+//     int count = 0;
+//     int i = 0;
+//     MessagePacket parsed_message = {0};
+//     char *token = strtok(rcv_message, " ");
+//     strcpy
+//     count++;
+//     while(token != NULL){
 
-    }
-}
+//     }
+// }
 // main goal: to make use of TCP and send between client and server.
 /*
 Done by:
@@ -88,13 +82,19 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char **argv)
 {
-    
+    struct user_info users[5] = {
+        {"gunin", "wasan"},
+        {"shikhar", "chaurasia"},
+        {"ali", "gardezi"},
+        {"shaheryar", "arshad"},
+        {"gandharv", "nagrani"}
+    };
     fd_set master;      //master fd list
     fd_set read_fds;    //temp file descriptor list for select()
     int fdmax;      //max file descriptor number
     int newfd;      //newly accept()ed socket descriptor
 
-    int client_id = 0;
+    // int client_id = 0;
     // incorrect usage of the server
     if (argc != 2)
     {
