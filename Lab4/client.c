@@ -12,6 +12,15 @@
 #include <unistd.h>
 #include <pthread.h>
 
+
+// main goal: to make use of UDP and send between client and server.
+/*
+Done by:
+Shikhar Chaurasia (Student # 1006710016)
+and
+Gunin Wasan (Student # 1007147749)
+*/
+
 #define LOGIN 1
 #define LO_ACK 2
 #define LO_NAK 3
@@ -39,14 +48,9 @@ struct message {
     unsigned char data[MAX_DATA];
 };
 
-// main goal: to make use of UDP and send between client and server.
-/*
-Done by:
-Shikhar Chaurasia (Student # 1006710016)
-and
-Gunin Wasan (Student # 1007147749)
-*/
 
+char *userName; // global set for user name
+// done so that we can set userName in send and confirm in receive.
 int commandControlName(char* command);
 int commandControlArgs(char* command);
 void* sendThread(void* sendSocket); // thread for sending a message
@@ -100,7 +104,8 @@ int main(int argc, char **argv)
 
     pthread_t receiving; //  receiving thread
     pthread_t sending; //  seding thread
-
+    
+    userName = (char *)malloc(sizeof(char) * 1024);
     //  Now we will create a receiving thread, 
     // here rcvThread is the function that handles receiving messages parallely
     if (pthread_create(&receiving, NULL, rcvThread, (void*) &srv_socket_fd) != 0) {
@@ -121,14 +126,13 @@ int main(int argc, char **argv)
     pthread_join(sending, NULL);
     close(srv_socket_fd);
     freeaddrinfo(server_info);
-
+    free(userName);
     return 0;
 }
 
 void* sendThread(void* sendSocket) {
     int srv_socket_fd = *((int*)sendSocket);
     char *message = (char *)malloc(sizeof(char) * 1024);
-    char *userName = (char *)malloc(sizeof(char) * 1024);
 
     while (1) {
         // printf("Enter text message: ");
@@ -207,7 +211,6 @@ void* sendThread(void* sendSocket) {
     }
 
     free(message);    
-    free(userName);
     pthread_exit(NULL); // indicates thread end
 }
 
