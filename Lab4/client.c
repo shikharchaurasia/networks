@@ -13,7 +13,7 @@
 #include <pthread.h>
 
 
-// main goal: to make use of UDP and send between client and server.
+// main goal: to make use of TCP and send texts between client and server.
 /*
 Done by:
 Shikhar Chaurasia (Student # 1006710016)
@@ -37,6 +37,7 @@ Gunin Wasan (Student # 1007147749)
 #define LOGOUT 14
 #define CREATE_SESS 15
 #define LIST 16
+#define REGISTER 17
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -143,6 +144,7 @@ void* sendThread(void* sendSocket) {
         char **sepWords = (char **)malloc(sizeof(char *) * 1024);  
         int numWords = 0;
         int allowToSend = 0;
+
         while (sepSpace != NULL) {
             sepWords[numWords] = (char *)malloc(sizeof(char) * (strlen(sepSpace) + 1));  
             strcpy(sepWords[numWords], sepSpace); 
@@ -160,7 +162,7 @@ void* sendThread(void* sendSocket) {
                     if(commandControlArgs(sepWords[0]) == (numWords-1)){
                         // all good we can go ahead.
                         char *dataMessage = (char *)malloc(sizeof(char) * 1024);
-                        if(getType==1){
+                        if(getType==LOGIN || getType==REGISTER){
                             strcpy(userName, sepWords[1]);
                         }
                         for(int i=1; i<numWords; i++){
@@ -262,7 +264,9 @@ int commandControlName(char* command){
     if(strcmp(command, "/message") == 0 || strcmp(command, "/message\n") == 0){
         return MESSAGE;
     }
-    
+    if(strcmp(command, "/register") == 0 || strcmp(command, "/register\n") == 0){
+        return REGISTER;
+    }
     return -1;
 }
 
@@ -294,6 +298,9 @@ int commandControlArgs(char* command){
     }
     if(strcmp(command, "/message\n") == 0){
         return 0;
+    }
+    if(strcmp(command, "/register") == 0){
+        return 2;
     }
     return -1;
 }
