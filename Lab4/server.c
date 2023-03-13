@@ -22,7 +22,9 @@
 #define MESSAGE 11
 #define QUERY 12
 #define QU_ACK 13
-
+#define LOGOUT 14
+#define CREATE_SESS 15
+#define LIST 16
 #define MAX_NAME 25
 #define MAX_DATA 1024
 
@@ -45,11 +47,45 @@ int user_status[5] = {0, 0, 0, 0, 0};
 
 int sessions [5] = {0, 0, 0, 0, 0};
 
-typedef struct messagepacket{
-    char command_text; 
-    char arguments[4][200];
-    int count;
-} MessagePacket;
+// based on different TYPE, we do different executions/responses.
+void command_execute(struct message *rcv_message){
+    // first extract message contents from the packet.
+    int message_type = rcv_message->TYPE;
+    int size = rcv_message->size;
+    char source_username[MAX_NAME] = rcv_message->source;
+
+    if(message_type == LOGIN){
+        // message argument format: clientID:password:serverIP:server-port
+        
+    }
+    else if(message_type == LIST){
+        // message argument format: none
+
+    }
+    else if(message_type == LOGOUT){
+        // message argument format: none
+        
+    }
+    else if(message_type == JOIN){
+        // message argument format: sessionID
+        
+    }
+    else if(message_type == CREATE_SESS){
+        // message argument format: sessionID
+        
+    }
+    else if(message_type == EXIT){
+        // message argument format: none
+        
+    }
+    else if(message_type == LEAVE_SESS){
+        // message argument format: none
+        
+    }
+
+}
+
+
 
 // MessagePacket parse_received_message(char *rcv_message){
 //     int count = 0;
@@ -219,41 +255,6 @@ int main(int argc, char **argv)
                 } // END handle data from client
             } // END got new incoming connection
         } // END looping through file descriptors
-
-        // int deliver_socket_fd = accept(srv_socket_fd, NULL, NULL);
-        // // sender's information - used in recv
-        // // struct sockaddr_storage sender_info;
-        // // int sender_info_size = sizeof(struct sockaddr_storage);
-        // char *text_buffer = (char *)malloc(sizeof(char) * 1024);
-        // int numbytes;
-
-        // int receivedBytes = 0;
-    
-        // if (((numbytes = recv(deliver_socket_fd, text_buffer, 1024, 0)) == -1))
-        // {
-        //     perror("recv");
-        //     close(srv_socket_fd);
-        //     exit(1);
-        // }        
-
-        // char *msg = "recvACK";
-        // client_id++;
-        // char client_id_str[20];
-        // sprintf(client_id_str, "%d", client_id);
-
-        // // if (send(deliver_socket_fd, msg, strlen(msg), 0) == -1) {
-        // //     perror("send");
-        // //     exit(1);
-        // // }
-        // if (send(deliver_socket_fd, client_id_str, strlen(client_id_str), 0) == -1) {
-        //     perror("send");
-        //     exit(1);
-        // }
-        // printf("Client 1: %s\n", text_buffer);
-        // free(text_buffer);
-        // printf("Closing socket. \n");
-        // close(deliver_socket_fd);
-        // printf("Client Socket Disconnected.\n");
     }
     return 0;
 }
