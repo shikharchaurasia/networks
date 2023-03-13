@@ -39,7 +39,7 @@ Gunin Wasan (Student # 1007147749)
 #define MAX_NAME 25
 #define MAX_DATA 1024
 #define MAX_SESSION 5
-
+#define USERINFO_FILE "userInfoDetails.txt"
 struct message {
     unsigned int type;
     unsigned int size;
@@ -63,17 +63,49 @@ struct user_info{
 // struct session head_session = NULL;
 // int count_sessions = 0;
 
-struct user_info users[5] = {
-    {"gunin", "wasan", 0},
-    {"shikhar", "chaurasia", 0},
-    {"ali", "gardezi", 0},
-    {"shaheryar", "arshad", 0},
-    {"gandharv", "nagrani", 0}
-};
+int userID = 0;
+void getUserData(struct user_info *userDetails) {
+    FILE *userFile = fopen(USERINFO_FILE, "r");
+    if (userFile == NULL)
+    {
+        printf("Couldnt retrieve user details. Please try again.\n");
+        return;
+        // exit(0);
+    }
+    char getUserDetails[50];
+    // we will iterate until we reach last line
+    while (fgets(getUserDetails, 50, userFile) != NULL) {
+        // separate through space and put them in userDetails struct.
+        sscanf(getUserDetails, "%s %s", userDetails[userID].username, userDetails[userID].password);
+        userDetails[userID].user_status = 0; //initially all logged out
+        userID++;
+    }
+    fclose(userFile);    
+}
+
+void registerUserData(struct user_info *userDetails, char *userName, char* userPassword) {
+    FILE *userFile = fopen(USERINFO_FILE, "a");
+    if (userFile == NULL)
+    {
+        //If file doesnt open we dont register
+        printf("Couldnt register user details. Please try again.\n");
+        return;
+        // exit(0);
+    }
+    // first we will append the data to the file.
+    fprintf(userFile, "\n%s %s", userName, userPassword);
+    // now we will add the data to user_info struct as well
+    strcpy(userDetails[userID].username, userName);
+    strcpy(userDetails[userID].password, userPassword);
+    userDetails[userID].user_status = 0; //initially all logged out
+    userID++;
+    fclose(userFile);
+}
+
 
 // based on different TYPE, we do different executions/responses.
 // client reps the file descriptor; message reps the command user has input
-int parse_and_execute(int client, char *client_message){
+int parse_and_execute(struct user_info *users, int client, char *client_message){
     // parse the incoming client message into a packet.
     struct message client_packet;
     // break down the string into individual components.
@@ -117,7 +149,7 @@ int parse_and_execute(int client, char *client_message){
         // we have our 4 arguments in our array of 4 arguments.
         // now we want to check if username exists or not. 
         int found_user = 0;
-        for(i = 0; i < 5; i++){
+        for(i = 0; i < userID; i++){
             // if the ith user has the same username as the packet's username
             if(strcmp(users[i].username, arguments[0]) == 0){
                 found_user = 1;
@@ -319,6 +351,8 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char **argv)
 {
+    struct user_info users[1000];
+    getUserData(users);
     
     fd_set master;      //master fd list
     fd_set read_fds;    //temp file descriptor list for select()
@@ -433,7 +467,7 @@ int main(int argc, char **argv)
                     } 
                     else {
                         // we got some data from a client
-                        int checkCommand = parse_and_execute(i, text_buffer);
+                        int checkCommand = parse_and_execute(users, i, text_buffer);
                         if(checkCommand==MESSAGE){
                             for(j = 0; j <= fdmax; j++) {
                                 // send to everyone!
