@@ -128,10 +128,13 @@ int main(int argc, char **argv)
 void* sendThread(void* sendSocket) {
     int srv_socket_fd = *((int*)sendSocket);
     char *message = (char *)malloc(sizeof(char) * 1024);
+    char *userName = (char *)malloc(sizeof(char) * 1024);
 
     while (1) {
         // printf("Enter text message: ");
         fgets(message, 1024, stdin);
+        char *message2 = (char *)malloc(sizeof(char) * 1024);
+        strcpy(message2, message);
         char *sepSpace = strtok(message, " ");  
         char **sepWords = (char **)malloc(sizeof(char *) * 1024);  
         int numWords = 0;
@@ -142,14 +145,30 @@ void* sendThread(void* sendSocket) {
             numWords++;
             sepSpace = strtok(NULL, " "); // next word here
         }
-
+        int getType, getSize;
+        char* source = userName;
+        char* data = (char *)malloc(sizeof(char) * 1024);
         if(numWords>0){
             if(sepWords[0][0]=='/'){
                 // so now we check if the command is valid or not.
-                if(commandControlName(sepWords[0]) !=-1){
+                getType=commandControlName(sepWords[0]);
+                if(getType !=-1){
                     if(commandControlArgs(sepWords[0]) == (numWords-1)){
                         // all good we can go ahead.
+                        char *dataMessage = (char *)malloc(sizeof(char) * 1024);
+                        if(getType==1){
+                            strcpy(userName, sepWords[1]);
+                        }
+                        for(int i=1; i<numWords; i++){
+                            strcat(dataMessage, sepWords[i]);
+                            if (i < numWords - 1) {
+                                strcat(dataMessage, " ");
+                            }
+                        }
+                        strcpy(data, dataMessage);
                         allowToSend = 1;
+                        free(dataMessage);
+                        getSize = strlen(data);
                     }
                     else{
                         printf("Please enter correct number of arguments. \n");
@@ -160,25 +179,35 @@ void* sendThread(void* sendSocket) {
                 }
             }
             else{
+                // not a command. just a text message
+                getType = MESSAGE;
+                strcpy(data, message2);
                 allowToSend = 1;
+                getSize = strlen(data);
             }
         }
-        else{
-            allowToSend = 1;
+        if(allowToSend==1 && strcmp(userName, "")==0){
+            allowToSend=0;
+            printf("\nPlease use the /login command to Login first.\n");
         }
-        // char *sepSpace = strtok(message, " ");
-        // printf("first = %s \n", message[0]);
+        
         if (allowToSend != 0)
         {
-            if (send(srv_socket_fd, message, 1024, 0) == -1)
+            char* sendMessage = (char *)malloc(sizeof(char) * 1024);
+            sprintf(sendMessage, "%d:%d:%s:%s", getType, getSize, source, data);
+            if (send(srv_socket_fd, sendMessage, 1024, 0) == -1)
             {
                 perror("send");
                 exit(1);
             }
+            free(sendMessage);
+            free(message2);
         }
+        free(data);
     }
 
-    free(message);
+    free(message);    
+    free(userName);
     pthread_exit(NULL); // indicates thread end
 }
 
@@ -256,7 +285,7 @@ int commandControlArgs(char* command){
         return 0;
     }
     if(strcmp(command, "/quit\n") == 0){
-        printf("Quitting Text Conference!\n");
+        printf("\nQuit Command Executed: Thank you for using the Text Conferencing Channel!\n");
         exit(0);
         return 0;
     }
