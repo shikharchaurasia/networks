@@ -47,6 +47,8 @@ and
 Gunin Wasan (Student # 1007147749)
 */
 
+int commandControlName(char* command);
+int commandControlArgs(char* command);
 void* sendThread(void* sendSocket); // thread for sending a message
 void* rcvThread(void* rcvSocket); // thread for receiving a message
 
@@ -140,11 +142,22 @@ void* sendThread(void* sendSocket) {
             numWords++;
             sepSpace = strtok(NULL, " "); // next word here
         }
+
         if(numWords>0){
             if(sepWords[0][0]=='/'){
-                printf("Command \n");
                 // so now we check if the command is valid or not.
-                
+                if(commandControlName(sepWords[0]) !=-1){
+                    if(commandControlArgs(sepWords[0]) == (numWords-1)){
+                        // all good we can go ahead.
+                        allowToSend = 1;
+                    }
+                    else{
+                        printf("Please enter correct number of arguments. \n");
+                    }
+                }
+                else{
+                    printf("Please enter a valid command. \n");
+                }
             }
             else{
                 allowToSend = 1;
@@ -188,4 +201,67 @@ void* rcvThread(void* rcvSocket) {
         }
     }
     pthread_exit(NULL); // indicates thread end
+}
+
+int commandControlName(char* command){
+    command[strlen(command)] = '\0';
+
+    if(strcmp(command, "/login") == 0 || strcmp(command, "/login\n") == 0){
+        return LOGIN;
+    }
+    if(strcmp(command, "/logout") == 0 || strcmp(command, "/logout\n") == 0){
+        return LOGOUT;
+    }
+    if(strcmp(command, "/joinsession") == 0 || strcmp(command, "/joinsession\n") == 0){
+        return JOIN;
+    }
+    if(strcmp(command, "/leavesession") == 0 || strcmp(command, "/leavesession\n") == 0){
+        return LEAVE_SESS;
+    }
+    if(strcmp(command, "/createsession") == 0 || strcmp(command, "/createsession\n") == 0){
+        return CREATE_SESS;
+    }
+    if(strcmp(command, "/list") == 0 || strcmp(command, "/list\n") == 0){
+        return LIST;
+    }
+    if(strcmp(command, "/quit") == 0 || strcmp(command, "/quit\n") == 0){
+        return EXIT;
+    }
+    if(strcmp(command, "/message") == 0 || strcmp(command, "/message\n") == 0){
+        return MESSAGE;
+    }
+    
+    return -1;
+}
+
+int commandControlArgs(char* command){
+    command[strlen(command)] = '\0';
+
+    if(strcmp(command, "/login") == 0){
+        return 4;
+    }
+    if(strcmp(command, "/logout\n") == 0){
+        return 0;
+    }
+    if(strcmp(command, "/joinsession") == 0){
+        return 1;
+    }
+    if(strcmp(command, "/leavesession\n") == 0){
+        return 0;
+    }
+    if(strcmp(command, "/createsession") == 0){
+        return 1;
+    }
+    if(strcmp(command, "/list\n") == 0){
+        return 0;
+    }
+    if(strcmp(command, "/quit\n") == 0){
+        printf("Quitting Text Conference!\n");
+        exit(0);
+        return 0;
+    }
+    if(strcmp(command, "/message\n") == 0){
+        return 0;
+    }
+    return -1;
 }
