@@ -49,8 +49,16 @@ struct message {
 struct user_info{
     char username[25];
     char password[20];
+    int user_status;
 };
 
+struct user_info users[5] = {
+    {"gunin", "wasan", 0},
+    {"shikhar", "chaurasia", 0},
+    {"ali", "gardezi", 0},
+    {"shaheryar", "arshad", 0},
+    {"gandharv", "nagrani", 0}
+};
 
 
 int user_status[5] = {0, 0, 0, 0, 0};
@@ -58,37 +66,128 @@ int user_status[5] = {0, 0, 0, 0, 0};
 int sessions [5] = {0, 0, 0, 0, 0};
 
 // based on different TYPE, we do different executions/responses.
-void command_execute(struct message *rcv_message){
+// client reps the file descriptor; message reps the 
+void parse_and_execute(int client, char *client_message){
+    // parse the incoming client message into a packet.
+    struct message client_packet;
+    // break down the string into individual components.
+    char copy_of_client_message[MAX_DATA];
+    memcpy(copy_of_client_message, client_message, strlen(client_message));
+    char components[4][MAX_DATA];
+
+	int i = 0;
+	char *token = strtok(copy_of_client_message, ":");
+	while(token != NULL && i < 4){
+		strncpy(components[i], token, MAX_DATA - 1);
+		components[i][MAX_DATA-1] = '\0';
+		token = strtok(NULL, ":");
+		i++;
+	}
+	// for(i = 0; i < 4; i++){
+	// 	printf("%s\n", components[i]);
+	// }
+    client_packet.type = atoi(components[0]);
+    client_packet.size = atoi(components[1]);
+    strncpy((char *)client_packet.source, components[2], MAX_NAME);
+    strncpy((char *)client_packet.data, components[3], MAX_DATA);
+
     // first extract message contents from the packet.
-    int message_type = rcv_message->type;
-    int size = rcv_message->size;
-    char *source_username = rcv_message->source;
 
-    if(message_type == LOGIN){
-        // message argument format: clientID:password:serverIP:server-port
-        
+    if(client_packet.type == LOGIN){
+        // data format: clientID:password:serverIP:server-port
+        // first extract your data.
+        char data[MAX_DATA];
+		memcpy(data, client_packet.data, client_packet.size);
+		char arguments[4][MAX_DATA];
+		int i = 0;
+		char *token = strtok(data, " ");
+		while(token != NULL && i < 4){
+			strncpy(arguments[i], token, MAX_DATA - 1);
+			arguments[i][MAX_DATA-1] = '\0';
+			token = strtok(NULL, " ");
+			i++;
+		}
+		// for(i = 0; i < 4; i++){
+		// 	printf("%s\n", arguments[i]);
+		// }
+        // we have our 4 arguments in our array of 4 arguments.
+        // now we want to check if username exists or not. 
+        int found_user = 0;
+        for(i = 0; i < 5; i++){
+            // if the ith user has the same username as the packet's username
+            if(strcmp(users[i].username, arguments[0]) == 0){
+                found_user = 1;
+                // if not logged in.
+                if(users[i].user_status == 0){
+                    // if the password was correct.
+                    if(strcmp(users[i].password, arguments[1]) == 0){ 
+                        users[i].user_status = 1;
+                        char sendMessage[1024];
+                        char data[25] = "Login Successful.";
+                        sprintf(sendMessage, "%d:%d:%s:%s", LO_ACK, (int)strlen(data), client_packet.source, data);
+                        if(send(client, sendMessage, 1024, 0) == -1){
+                            perror("send");
+                            exit(1);
+                        }
+                        break;
+                    }
+                    // password was incorrect.
+                    else{
+                        char sendMessage[1024];
+                        char data[25] = "Incorrect Password.";
+                        sprintf(sendMessage, "%d:%d:%s:%s", LO_NAK, (int)strlen(data), client_packet.source, data);
+                        if(send(client, sendMessage, 1024, 0) == -1){
+                            perror("send");
+                            exit(1);
+                        }
+                        break;
+                    }
+                }
+                else{
+                    // user is logged in to begin with - send LO_NAK
+                    char sendMessage[1024];
+                    char data[25] = "Already Logged In.";
+                    sprintf(sendMessage, "%d:%d:%s:%s", LO_NAK, (int)strlen(data), client_packet.source, data);
+                    if(send(client, sendMessage, 1024, 0) == -1){
+                        perror("send");
+                        exit(1);
+                    }
+                    break;
+                }
+            }
+        }
+        // user not found.
+        if(found_user == 0){
+            char sendMessage[1024];
+            char data[25] = "Incorrect Username.";
+            sprintf(sendMessage, "%d:%d:%s:%s", LO_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+        }
     }
-    else if(message_type == LIST){
+    else if(client_packet.type == LIST){
         // message argument format: none
 
     }
-    else if(message_type == LOGOUT){
+    else if(client_packet.type == LOGOUT){
         // message argument format: none
         
     }
-    else if(message_type == JOIN){
+    else if(client_packet.type == JOIN){
         // message argument format: sessionID
         
     }
-    else if(message_type == CREATE_SESS){
+    else if(client_packet.type == CREATE_SESS){
         // message argument format: sessionID
         
     }
-    else if(message_type == EXIT){
+    else if(client_packet.type == EXIT){
         // message argument format: none
         
     }
-    else if(message_type == LEAVE_SESS){
+    else if(client_packet.type == LEAVE_SESS){
         // message argument format: none
         
     }
@@ -121,13 +220,7 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char **argv)
 {
-    struct user_info users[5] = {
-        {"gunin", "wasan"},
-        {"shikhar", "chaurasia"},
-        {"ali", "gardezi"},
-        {"shaheryar", "arshad"},
-        {"gandharv", "nagrani"}
-    };
+    
     fd_set master;      //master fd list
     fd_set read_fds;    //temp file descriptor list for select()
     int fdmax;      //max file descriptor number
