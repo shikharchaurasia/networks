@@ -12,6 +12,15 @@
 #include <unistd.h>
 #include <pthread.h>
 
+
+// main goal: to make use of TCP and send texts between client and server.
+/*
+Done by:
+Shikhar Chaurasia (Student # 1006710016)
+and
+Gunin Wasan (Student # 1007147749)
+*/
+
 #define LOGIN 1
 #define LO_ACK 2
 #define LO_NAK 3
@@ -28,6 +37,7 @@
 #define LOGOUT 14
 #define CREATE_SESS 15
 #define LIST 16
+#define REGISTER 17
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -39,14 +49,11 @@ struct message {
     unsigned char data[MAX_DATA];
 };
 
-// main goal: to make use of UDP and send between client and server.
-/*
-Done by:
-Shikhar Chaurasia (Student # 1006710016)
-and
-Gunin Wasan (Student # 1007147749)
-*/
 
+char *userName; // global set for user name
+// done so that we can set userName in send and confirm in receive.
+int commandControlName(char* command);
+int commandControlArgs(char* command);
 void* sendThread(void* sendSocket); // thread for sending a message
 void* rcvThread(void* rcvSocket); // thread for receiving a message
 
@@ -98,7 +105,8 @@ int main(int argc, char **argv)
 
     pthread_t receiving; //  receiving thread
     pthread_t sending; //  seding thread
-
+    
+    userName = (char *)malloc(sizeof(char) * 1024);
     //  Now we will create a receiving thread, 
     // here rcvThread is the function that handles receiving messages parallely
     if (pthread_create(&receiving, NULL, rcvThread, (void*) &srv_socket_fd) != 0) {
@@ -119,7 +127,7 @@ int main(int argc, char **argv)
     pthread_join(sending, NULL);
     close(srv_socket_fd);
     freeaddrinfo(server_info);
-
+    free(userName);
     return 0;
 }
 
@@ -130,42 +138,81 @@ void* sendThread(void* sendSocket) {
     while (1) {
         // printf("Enter text message: ");
         fgets(message, 1024, stdin);
+        char *message2 = (char *)malloc(sizeof(char) * 1024);
+        strcpy(message2, message);
         char *sepSpace = strtok(message, " ");  
         char **sepWords = (char **)malloc(sizeof(char *) * 1024);  
         int numWords = 0;
         int allowToSend = 0;
+
         while (sepSpace != NULL) {
             sepWords[numWords] = (char *)malloc(sizeof(char) * (strlen(sepSpace) + 1));  
             strcpy(sepWords[numWords], sepSpace); 
             numWords++;
             sepSpace = strtok(NULL, " "); // next word here
         }
+        int getType, getSize;
+        char* source = userName;
+        char* data = (char *)malloc(sizeof(char) * 1024);
         if(numWords>0){
             if(sepWords[0][0]=='/'){
-                printf("Command \n");
                 // so now we check if the command is valid or not.
-                
+                getType=commandControlName(sepWords[0]);
+                if(getType !=-1){
+                    if(commandControlArgs(sepWords[0]) == (numWords-1)){
+                        // all good we can go ahead.
+                        char *dataMessage = (char *)malloc(sizeof(char) * 1024);
+                        if(getType==LOGIN || getType==REGISTER){
+                            strcpy(userName, sepWords[1]);
+                        }
+                        for(int i=1; i<numWords; i++){
+                            strcat(dataMessage, sepWords[i]);
+                            if (i < numWords - 1) {
+                                strcat(dataMessage, " ");
+                            }
+                        }
+                        strcpy(data, dataMessage);
+                        allowToSend = 1;
+                        free(dataMessage);
+                        getSize = strlen(data);
+                    }
+                    else{
+                        printf("Please enter correct number of arguments. \n");
+                    }
+                }
+                else{
+                    printf("Please enter a valid command. \n");
+                }
             }
             else{
+                // not a command. just a text message
+                getType = MESSAGE;
+                strcpy(data, message2);
                 allowToSend = 1;
+                getSize = strlen(data);
             }
         }
-        else{
-            allowToSend = 1;
+        if(allowToSend==1 && strcmp(userName, "")==0){
+            allowToSend=0;
+            printf("\nPlease use the /login command to Login first.\n");
         }
-        // char *sepSpace = strtok(message, " ");
-        // printf("first = %s \n", message[0]);
+        
         if (allowToSend != 0)
         {
-            if (send(srv_socket_fd, message, 1024, 0) == -1)
+            char* sendMessage = (char *)malloc(sizeof(char) * 1024);
+            sprintf(sendMessage, "%d:%d:%s:%s", getType, getSize, source, data);
+            if (send(srv_socket_fd, sendMessage, 1024, 0) == -1)
             {
                 perror("send");
                 exit(1);
             }
+            free(sendMessage);
+            free(message2);
         }
+        free(data);
     }
 
-    free(message);
+    free(message);    
     pthread_exit(NULL); // indicates thread end
 }
 
@@ -188,4 +235,72 @@ void* rcvThread(void* rcvSocket) {
         }
     }
     pthread_exit(NULL); // indicates thread end
+}
+
+int commandControlName(char* command){
+    command[strlen(command)] = '\0';
+
+    if(strcmp(command, "/login") == 0 || strcmp(command, "/login\n") == 0){
+        return LOGIN;
+    }
+    if(strcmp(command, "/logout") == 0 || strcmp(command, "/logout\n") == 0){
+        return LOGOUT;
+    }
+    if(strcmp(command, "/joinsession") == 0 || strcmp(command, "/joinsession\n") == 0){
+        return JOIN;
+    }
+    if(strcmp(command, "/leavesession") == 0 || strcmp(command, "/leavesession\n") == 0){
+        return LEAVE_SESS;
+    }
+    if(strcmp(command, "/createsession") == 0 || strcmp(command, "/createsession\n") == 0){
+        return CREATE_SESS;
+    }
+    if(strcmp(command, "/list") == 0 || strcmp(command, "/list\n") == 0){
+        return LIST;
+    }
+    if(strcmp(command, "/quit") == 0 || strcmp(command, "/quit\n") == 0){
+        return EXIT;
+    }
+    if(strcmp(command, "/message") == 0 || strcmp(command, "/message\n") == 0){
+        return MESSAGE;
+    }
+    if(strcmp(command, "/register") == 0 || strcmp(command, "/register\n") == 0){
+        return REGISTER;
+    }
+    return -1;
+}
+
+int commandControlArgs(char* command){
+    command[strlen(command)] = '\0';
+
+    if(strcmp(command, "/login") == 0){
+        return 4;
+    }
+    if(strcmp(command, "/logout\n") == 0){
+        return 0;
+    }
+    if(strcmp(command, "/joinsession") == 0){
+        return 1;
+    }
+    if(strcmp(command, "/leavesession\n") == 0){
+        return 0;
+    }
+    if(strcmp(command, "/createsession") == 0){
+        return 1;
+    }
+    if(strcmp(command, "/list\n") == 0){
+        return 0;
+    }
+    if(strcmp(command, "/quit\n") == 0){
+        printf("\nQuit Command Executed: Thank you for using the Text Conferencing Channel!\n");
+        exit(0);
+        return 0;
+    }
+    if(strcmp(command, "/message\n") == 0){
+        return 0;
+    }
+    if(strcmp(command, "/register") == 0){
+        return 2;
+    }
+    return -1;
 }

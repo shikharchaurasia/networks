@@ -9,6 +9,16 @@
 #include <netdb.h>
 #include <unistd.h>
 
+
+// main goal: to make use of TCP and send texts between client and server.
+/*
+Done by:
+Shikhar Chaurasia (Student # 1006710016)
+and
+Gunin Wasan (Student # 1007147749)
+*/
+
+
 #define LOGIN 1
 #define LO_ACK 2
 #define LO_NAK 3
@@ -98,13 +108,6 @@ void command_execute(struct message *rcv_message){
 
 //     }
 // }
-// main goal: to make use of TCP and send between client and server.
-/*
-Done by:
-Shikhar Chaurasia (Student # 1006710016)
-and
-Gunin Wasan (Student # 1007147749)
-*/
 
 void *get_in_addr(struct sockaddr *sa)
 {
