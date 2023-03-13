@@ -35,8 +35,10 @@ Gunin Wasan (Student # 1007147749)
 #define LOGOUT 14
 #define CREATE_SESS 15
 #define LIST 16
+#define NS_NAK 17
 #define MAX_NAME 25
 #define MAX_DATA 1024
+#define MAX_SESSION 5
 
 struct message {
     unsigned int type;
@@ -53,8 +55,13 @@ struct user_info{
 };
 
 // struct session{
-    
-// }
+//     int sessionID;
+//     char **list_of_users;
+//     struct session *next_session;
+// };
+
+// struct session head_session = NULL;
+// int count_sessions = 0;
 
 struct user_info users[5] = {
     {"gunin", "wasan", 0},
@@ -65,7 +72,7 @@ struct user_info users[5] = {
 };
 
 // based on different TYPE, we do different executions/responses.
-// client reps the file descriptor; message reps the 
+// client reps the file descriptor; message reps the command user has input
 void parse_and_execute(int client, char *client_message){
     // parse the incoming client message into a packet.
     struct message client_packet;
@@ -93,9 +100,11 @@ void parse_and_execute(int client, char *client_message){
     if(client_packet.type == LOGIN){
         // data format: clientID:password:serverIP:server-port
         // first extract your data.
+
         char data[MAX_DATA];
 		memcpy(data, client_packet.data, client_packet.size);
 		char arguments[4][MAX_DATA];
+
 		int i = 0;
 		char *token = strtok(data, " ");
 		while(token != NULL && i < 4){
@@ -165,8 +174,50 @@ void parse_and_execute(int client, char *client_message){
     else if(client_packet.type == QUERY){
         // message argument format: none
         // list all active sessions and users.
+        // first the sessions.
+        int i = 0;
+        char active_sessions[300] = "Active Sessions: ";
+        char active_users[300] = "Active Users: ";
+        // if(count_sessions != 0){
+        //     // make sure ack message has 0 in sessions.
+        //     struct session *sptr = head_session;
+        //     while(sptr != NULL && i <= 4){
+        //         char sess[5];
+        //         sprintf(sess, "%d",sptr->sessionID);
+        //         strcat(active_sessions, sess);
+        //         strcat(active_sessions, " ");
+        //         sptr = sptr->next;
+        //         i++;
+        //     }
+        // }
+        // else{
+            char msg[10] = "None.";
+            strcat(active_sessions, msg);
+        // }
+        int found = 0;
+        for(i = 0; i < 5; i++){
+            if(users[i].user_status == 1){
+                found = 1;
+                strcat(active_users, users[i].username);
+                strcat(active_users, " ");
+            }
+        }
+        if(found == 0){
+            char msg[10] = "None.";
+            strcat(active_users, msg);
+        }
 
-        
+        char data[700];
+        strcat(data, active_users);
+        strcat(data, "\n");
+        strcat(data, active_sessions);
+        strcat(data, "\n");
+        char sendMessage[1024];
+        sprintf(sendMessage, "%d:%d:%s:%s", QU_ACK, (int)strlen(data), client_packet.source, data);
+        if(send(client, sendMessage, 1024, 0) == -1){
+            perror("send");
+            exit(1);
+        }
 
     }
     else if(client_packet.type == LOGOUT){
@@ -182,35 +233,75 @@ void parse_and_execute(int client, char *client_message){
         }
         
     }
-    else if(client_packet.type == JOIN){
-        // message argument format: sessionID
+    // else if(client_packet.type == JOIN){
+    //     // message argument format: sessionID
+
         
-    }
-    else if(client_packet.type == CREATE_SESS){
-        // message argument format: sessionID
+    // }
+    // else if(client_packet.type == NEW_SESS){
+    //     // message argument format: sessionID
+    //     // if count = 5, no more sessions can be created.
+    //     // extract sessionID
+    //     if(count_sessions >= 5){
+    //         // send NS_NAK
+    //         char sendMessage[1024];
+    //         char data[25] = "Max Sessions Created.";
+    //         sprintf(sendMessage, "%d:%d:%s:%s", NS_NAK, (int)strlen(data), client_packet.source, data);
+    //         if(send(client, sendMessage, 1024, 0) == -1){
+    //             perror("send");
+    //             exit(1);
+    //         }
+    //     }
+    //     // check if sessionID already exists or not.
+    //     int session_id = atoi(components[3]); 
+    //     struct session *sptr = head_session;
+    //     int flag = 0;
+    //     if(head_session != NULL){
+    //         while(sptr != NULL){
+    //             if(sptr->sessionID == session_id){
+    //                 flag = 1;
+    //                 break;
+    //             }
+    //         }
+    //     }
+    //     if(flag == 1){
+    //         // send NS_NAK
+    //         char sendMessage[1024];
+    //         char data[25] = "Session Already Exists.";
+    //         sprintf(sendMessage, "%d:%d:%s:%s", NS_NAK, (int)strlen(data), client_packet.source, data);
+    //         if(send(client, sendMessage, 1024, 0) == -1){
+    //             perror("send");
+    //             exit(1);
+    //         }
+    //     }
+
+    //     struct session* new_session = (struct session *)malloc(sizeof(struct session));
+    //     new_session->list_of_users = (char **)malloc(sizeof(char*));
+    //     new_session->list_of_users = NULL;
+
+    //     head_session->next_session = NULL;
+    //     head_session->sessionID = session_id;
+
+    //     if(head_session == NULL){
+    //         head_session = new_session;
+    //         head_session->sessionID = ;
+    //     }
+
+    //     sptr = head_session;
+    //     while(sptr->next_session != NULL){
+    //         sptr = sptr->next;
+    //     }
+
+
         
-    }
+    // }
     
-    else if(client_packet.type == LEAVE_SESS){
-        // message argument format: none
+    // else if(client_packet.type == LEAVE_SESS){
+    //     // message argument format: none
         
-    }
+    // }
 
 }
-
-
-
-// MessagePacket parse_received_message(char *rcv_message){
-//     int count = 0;
-//     int i = 0;
-//     MessagePacket parsed_message = {0};
-//     char *token = strtok(rcv_message, " ");
-//     strcpy
-//     count++;
-//     while(token != NULL){
-
-//     }
-// }
 
 void *get_in_addr(struct sockaddr *sa)
 {
