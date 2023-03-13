@@ -73,7 +73,7 @@ struct user_info users[5] = {
 
 // based on different TYPE, we do different executions/responses.
 // client reps the file descriptor; message reps the command user has input
-void parse_and_execute(int client, char *client_message){
+int parse_and_execute(int client, char *client_message){
     // parse the incoming client message into a packet.
     struct message client_packet;
     // break down the string into individual components.
@@ -233,6 +233,10 @@ void parse_and_execute(int client, char *client_message){
         }
         
     }
+    else{
+        return MESSAGE;
+    }
+    return 0;
     // else if(client_packet.type == JOIN){
     //     // message argument format: sessionID
 
@@ -429,19 +433,25 @@ int main(int argc, char **argv)
                     } 
                     else {
                         // we got some data from a client
-                        for(j = 0; j <= fdmax; j++) {
-                            // send to everyone!
-                            if (FD_ISSET(j, &master)) {
-                                // except the listener and ourselves
-                                if (j != srv_socket_fd && j != i) {
-                                    if (send(j, text_buffer, nbytes, 0) == -1) {
-                                        perror("send");
+                        int checkCommand = parse_and_execute(i, text_buffer);
+                        if(checkCommand==MESSAGE){
+                            for(j = 0; j <= fdmax; j++) {
+                                // send to everyone!
+                                if (FD_ISSET(j, &master)) {
+                                    // except the listener and ourselves
+                                    if (j != srv_socket_fd && j != i) {
+                                        if (send(j, text_buffer, nbytes, 0) == -1) {
+                                            perror("send");
+                                        }
                                     }
                                 }
                             }
+                            printf("%s\n", text_buffer);
                         }
-                        printf("%s\n", text_buffer);
-
+                        else{
+                            printf("COMMAND: ");
+                            printf("%s\n", text_buffer);
+                        }
                     }
                 } // END handle data from client
             } // END got new incoming connection
