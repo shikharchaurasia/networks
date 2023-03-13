@@ -130,11 +130,38 @@ void* sendThread(void* sendSocket) {
     while (1) {
         // printf("Enter text message: ");
         fgets(message, 1024, stdin);
+        char *sepSpace = strtok(message, " ");  
+        char **sepWords = (char **)malloc(sizeof(char *) * 1024);  
+        int numWords = 0;
+        int allowToSend = 0;
+        while (sepSpace != NULL) {
+            sepWords[numWords] = (char *)malloc(sizeof(char) * (strlen(sepSpace) + 1));  
+            strcpy(sepWords[numWords], sepSpace); 
+            numWords++;
+            sepSpace = strtok(NULL, " "); // next word here
+        }
+        if(numWords>0){
+            if(sepWords[0][0]=='/'){
+                printf("Command \n");
+                // so now we check if the command is valid or not.
+                
+            }
+            else{
+                allowToSend = 1;
+            }
+        }
+        else{
+            allowToSend = 1;
+        }
+        // char *sepSpace = strtok(message, " ");
         // printf("first = %s \n", message[0]);
-        if (send(srv_socket_fd, message, 1024, 0) == -1)
+        if (allowToSend != 0)
         {
-            perror("send");
-            exit(1);
+            if (send(srv_socket_fd, message, 1024, 0) == -1)
+            {
+                perror("send");
+                exit(1);
+            }
         }
     }
 
