@@ -52,6 +52,10 @@ struct user_info{
     int user_status;
 };
 
+// struct session{
+    
+// }
+
 struct user_info users[5] = {
     {"gunin", "wasan", 0},
     {"shikhar", "chaurasia", 0},
@@ -59,11 +63,6 @@ struct user_info users[5] = {
     {"shaheryar", "arshad", 0},
     {"gandharv", "nagrani", 0}
 };
-
-
-int user_status[5] = {0, 0, 0, 0, 0};
-
-int sessions [5] = {0, 0, 0, 0, 0};
 
 // based on different TYPE, we do different executions/responses.
 // client reps the file descriptor; message reps the 
@@ -83,9 +82,7 @@ void parse_and_execute(int client, char *client_message){
 		token = strtok(NULL, ":");
 		i++;
 	}
-	// for(i = 0; i < 4; i++){
-	// 	printf("%s\n", components[i]);
-	// }
+
     client_packet.type = atoi(components[0]);
     client_packet.size = atoi(components[1]);
     strncpy((char *)client_packet.source, components[2], MAX_NAME);
@@ -107,9 +104,7 @@ void parse_and_execute(int client, char *client_message){
 			token = strtok(NULL, " ");
 			i++;
 		}
-		// for(i = 0; i < 4; i++){
-		// 	printf("%s\n", arguments[i]);
-		// }
+
         // we have our 4 arguments in our array of 4 arguments.
         // now we want to check if username exists or not. 
         int found_user = 0;
@@ -167,12 +162,24 @@ void parse_and_execute(int client, char *client_message){
             }
         }
     }
-    else if(client_packet.type == LIST){
+    else if(client_packet.type == QUERY){
         // message argument format: none
+        // list all active sessions and users.
+
+        
 
     }
     else if(client_packet.type == LOGOUT){
         // message argument format: none
+        for(i = 0; i < 5; i++){
+            if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
+                // only if user is logged in, log them out.
+                if(users[i].user_status == 1){
+                    users[i].user_status = 0;
+                }
+                break;
+            }
+        }
         
     }
     else if(client_packet.type == JOIN){
@@ -183,10 +190,7 @@ void parse_and_execute(int client, char *client_message){
         // message argument format: sessionID
         
     }
-    else if(client_packet.type == EXIT){
-        // message argument format: none
-        
-    }
+    
     else if(client_packet.type == LEAVE_SESS){
         // message argument format: none
         
