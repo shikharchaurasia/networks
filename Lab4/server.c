@@ -60,9 +60,9 @@ int sessions [5] = {0, 0, 0, 0, 0};
 // based on different TYPE, we do different executions/responses.
 void command_execute(struct message *rcv_message){
     // first extract message contents from the packet.
-    int message_type = rcv_message->TYPE;
+    int message_type = rcv_message->type;
     int size = rcv_message->size;
-    char source_username[MAX_NAME] = rcv_message->source;
+    char *source_username = rcv_message->source;
 
     if(message_type == LOGIN){
         // message argument format: clientID:password:serverIP:server-port
