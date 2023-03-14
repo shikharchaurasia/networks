@@ -38,6 +38,9 @@ Gunin Wasan (Student # 1007147749)
 #define NS_NAK 17
 #define LG_ACK 18
 #define REGISTER 19
+#define LV_ACK 20
+#define LV_NAK 21
+
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -339,10 +342,12 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         new_session->list_of_users = (char **)malloc(MAX_SESSION * sizeof(char *));
 
         for(i = 0; i < MAX_SESSION; i++){
-            new_session->list_of_users[i] = (char *)malloc(sizeof(char) * MAX_NAME);
+            // new_session->list_of_users[i] = (char *)malloc(sizeof(char) * MAX_NAME);
+            new_session->list_of_users[i] = NULL;
         }
         // assign the first user as the one creating the session.
         new_session->sessionCount = 1;
+        new_session->list_of_users[0] = (char *)malloc(sizeof(char) * MAX_NAME);
         strncpy(new_session->list_of_users[0], (const char*)client_packet.source, MAX_NAME);
         // now we need to insert the session into a session queue.
         new_session->next_session = NULL;
@@ -381,6 +386,94 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
     else if(client_packet.type == LEAVE_SESS){
         // message argument format: none
         // check which session you are a part of.
+        int sesh_id = 0;
+        for(i = 0; i < userID; i++){
+            if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
+                if(users[i].session_id !=0){
+                    sesh_id = users[i].session_id;
+                    break;
+                }
+            }
+        }
+        if(sesh_id != 0){
+            // int found = 0;
+            struct session *sptr = head_session;
+            while(sptr->sessionID != sesh_id && sptr != NULL){
+                sptr = sptr->next_session;
+            }
+            if(sptr == NULL){
+                // nak
+                char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+                char data[50] = "Session DNE.\n";
+                sprintf(sendMessage, "%d:%d:%s:%s", LV_NAK, (int)strlen(data), client_packet.source, data);
+                if(send(client, sendMessage, 1024, 0) == -1){
+                    perror("send");
+                    exit(1);
+                }
+                free(sendMessage);
+                return 0;
+
+            }
+            int delete_session = 0;
+            for(int i = 0; i < MAX_SESSION; i++){
+                if(strcmp(sptr->list_of_users[i], (const char *)client_packet.source) == 0){
+                    free(sptr->list_of_users[i]);
+                    sptr->list_of_users[i] = NULL;
+                    sptr->sessionCount = sptr->sessionCount - 1;
+                    if(sptr->sessionCount == 0){
+                        delete_session = 1;
+                    }
+                    break;
+                }
+            }
+            for(i = 0; i < userID; i++){
+                if(strcmp(users[i].username, (const char *)client_packet.source)==0){
+                    users[i].session_id = 0;
+                    break;
+                }
+            }
+            // ack
+            char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+            char data[50] = "Session Left.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", LV_ACK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+            free(sendMessage);
+            if(delete_session == 1){
+                sptr = head_session;
+                struct session* pptr = NULL;
+                while(sptr->sessionID != sesh_id && sptr != NULL){
+                    pptr = sptr;
+                    sptr = sptr->next_session;
+                }
+                if(pptr == NULL){
+                    head_session = sptr->next_session;
+                }
+                else{
+                    pptr->next_session = sptr->next_session;
+                }
+                free(sptr->list_of_users);
+                free(sptr);
+            }
+
+            return 0;
+
+        }
+        else{
+            char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+            char data[50] = "User Not in Session.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", LV_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+            free(sendMessage);
+        }
+        return 0;
+
+
 
         
     }
