@@ -143,7 +143,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
 
     client_packet.type = atoi(components[0]);
     client_packet.size = atoi(components[1]);
-    printf("cpd: %s\n", components[3]);
+    // printf("cpd: %s\n", components[3]);
     memset(client_packet.source, '\0', sizeof(client_packet.source));
     memset(client_packet.data, '\0', sizeof(client_packet.data));
 
@@ -320,6 +320,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             free(sendMessage);
             return 0;
         }
+
         int already_in_session = 0;
         for(i = 0; i < userID; i++){
             if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
@@ -329,6 +330,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 }
             }
         }
+
         if(already_in_session == 1){
             char *sendMessage = (char *)malloc(sizeof(char) * 1024);
             char data[50] = "Already in session.\n";
@@ -340,9 +342,17 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             free(sendMessage);
             return 0;
         }
-        while(sptr->sessionID != session_id){
+        sptr = head_session;
+        while(sptr->sessionID != session_id && sptr != NULL){
+            printf("%d\n", sptr->sessionID);
+            printf("%d\n", session_id);
+            if(sptr->next_session == NULL){
+                sptr = NULL;
+                break;
+            }
             sptr = sptr->next_session;
         }
+
         if(sptr == NULL){
             // NAK - DNE
             char *sendMessage = (char *)malloc(sizeof(char) * 1024);
@@ -396,7 +406,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
     else if(client_packet.type == NEW_SESS){
         // message argument format: sessionID
         // check if sessionID already exists or not.
-        printf("%s\n", client_packet.data);
+        // printf("%s\n", client_packet.data);
         int session_id = atoi((const char *)client_packet.data); 
         // printf("SESSION ID IS %d\n", session_id);
         struct session *sptr = head_session;
@@ -410,7 +420,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 sptr = sptr->next_session;
             }
         }
-        printf("F%d\n", flag);
+        // printf("F%d\n", flag);
         // if sessionID already exists, send a NS_NAK.
         if(flag == 1){
             // send NS_NAK
