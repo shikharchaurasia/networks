@@ -37,7 +37,8 @@ Gunin Wasan (Student # 1007147749)
 #define LOGOUT 14
 #define CREATE_SESS 15
 #define LIST 16
-#define REGISTER 17
+#define NS_NAK 17
+#define REGISTER 18
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -53,9 +54,10 @@ struct message {
 char *userName; // global set for user name
 // done so that we can set userName in send and confirm in receive.
 int commandControlName(char* command);
-int commandControlArgs(char* command);
+int commandControlArgs(char* command, int srv_socket_fd);
 void* sendThread(void* sendSocket); // thread for sending a message
 void* rcvThread(void* rcvSocket); // thread for receiving a message
+void checkCommand(char *srv_message);
 
 int main(int argc, char **argv)
 {
@@ -159,7 +161,7 @@ void* sendThread(void* sendSocket) {
                 // so now we check if the command is valid or not.
                 getType=commandControlName(sepWords[0]);
                 if(getType !=-1){
-                    if(commandControlArgs(sepWords[0]) == (numWords-1)){
+                    if(commandControlArgs(sepWords[0],srv_socket_fd) == (numWords-1)){
                         // all good we can go ahead.
                         char *dataMessage = (char *)malloc(sizeof(char) * 1024);
                         if(getType==LOGIN || getType==REGISTER){
@@ -227,7 +229,8 @@ void* rcvThread(void* rcvSocket) {
             exit(1);
         }
         else if(rv != 0){
-            printf("\n%s\n",text_buffer);
+            // we are adding a function to check if we are receiving a reply to a command here.
+            checkCommand(text_buffer);
         }
         else{
             printf("Server ended: Thank you for using the Text Conferencing Channel!\n");
@@ -256,7 +259,7 @@ int commandControlName(char* command){
         return CREATE_SESS;
     }
     if(strcmp(command, "/list") == 0 || strcmp(command, "/list\n") == 0){
-        return LIST;
+        return QUERY;
     }
     if(strcmp(command, "/quit") == 0 || strcmp(command, "/quit\n") == 0){
         return EXIT;
@@ -270,7 +273,7 @@ int commandControlName(char* command){
     return -1;
 }
 
-int commandControlArgs(char* command){
+int commandControlArgs(char* command, int srv_socket_fd){
     command[strlen(command)] = '\0';
 
     if(strcmp(command, "/login") == 0){
@@ -293,6 +296,15 @@ int commandControlArgs(char* command){
     }
     if(strcmp(command, "/quit\n") == 0){
         printf("\nQuit Command Executed: Thank you for using the Text Conferencing Channel!\n");
+
+        char* sendMessage = (char *)malloc(sizeof(char) * 1024);
+        sprintf(sendMessage, "%d:%d:%s:%s", LOGOUT, 0, userName, "");
+        if (send(srv_socket_fd, sendMessage, 1024, 0) == -1)
+        {
+            perror("couldnt log out properly.");
+            exit(1);
+        }
+        free(sendMessage);
         exit(0);
         return 0;
     }
@@ -303,4 +315,61 @@ int commandControlArgs(char* command){
         return 2;
     }
     return -1;
+}
+
+void checkCommand(char *srv_message){
+    char *message = (char *)malloc(sizeof(char) * 1024);
+    strcpy(message, srv_message);
+    char *sepColon = strtok(message, ":");  
+    char **sepWords = (char **)malloc(sizeof(char *) * 1024);  
+    int numWords = 0;
+
+    while (sepColon != NULL) {
+        sepWords[numWords] = (char *)malloc(sizeof(char) * (strlen(sepColon) + 1));  
+        strcpy(sepWords[numWords], sepColon); 
+        numWords++;
+        sepColon = strtok(NULL, ":"); // next word here
+    }
+
+    int getType = atoi(sepWords[0]);
+    char* source = (char *)malloc(sizeof(char) * 1024);
+    char* data = (char *)malloc(sizeof(char) * 1024);
+    strcpy(source, sepWords[2]);
+    strcpy(data, sepWords[3]);
+
+    if(getType==LO_ACK){
+        //login successful here
+        printf("%s\n", data);
+    }
+    else if(getType==LO_NAK){
+        //login not successful here
+        strcpy(userName,"");
+        printf("%s\n", data);
+    }
+    else if(getType==JN_ACK){
+        //join session successful here
+        
+    }
+    else if(getType==JN_NAK){
+        //join session not successful here
+        
+    }
+    else if(getType==JN_NAK){
+        //join session not successful here
+        
+    }
+    else if(getType==LOGOUT){
+        //join session not successful here
+        strcpy(userName,"");
+        printf("%s\n", data);
+    }
+    else{
+        if(strcmp(userName,"")!=0)
+            printf("\n%s: %s\n",source, data);
+    }
+    free(data);
+    free(message);
+    free(sepColon);
+    free(sepWords);
+    free(source);
 }
