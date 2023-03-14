@@ -122,6 +122,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
 	int i = 0;
 	char *token = strtok(copy_of_client_message, ":");
 	while(token != NULL && i < 4){
+        memset(components[i], '\0', sizeof(components[i]));
 		strncpy(components[i], token, MAX_DATA - 1);
 		components[i][MAX_DATA-1] = '\0';
 		token = strtok(NULL, ":");
@@ -130,6 +131,10 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
 
     client_packet.type = atoi(components[0]);
     client_packet.size = atoi(components[1]);
+    printf("cpd: %s\n", components[3]);
+    memset(client_packet.source, '\0', sizeof(client_packet.source));
+    memset(client_packet.data, '\0', sizeof(client_packet.data));
+
     strncpy((char *)client_packet.source, components[2], MAX_NAME);
     strncpy((char *)client_packet.data, components[3], MAX_DATA);
 
@@ -291,10 +296,10 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
     }
     else if(client_packet.type == NEW_SESS){
         // message argument format: sessionID
-        
         // check if sessionID already exists or not.
-
-        int session_id = atoi(components[3]); 
+        printf("%s\n", client_packet.data);
+        int session_id = atoi((const char *)client_packet.data); 
+        // printf("SESSION ID IS %d\n", session_id);
         struct session *sptr = head_session;
         int flag = 0;
         if(head_session != NULL){
@@ -328,11 +333,11 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         for(i = 0; i < MAX_SESSION; i++){
             new_session->list_of_users[i] = (char *)malloc(sizeof(char) * MAX_NAME);
         }
-        
+        printf("HERE!!!\n");
         // assign the first user as the one creating the session.
         new_session->sessionCount = 1;
         strncpy(new_session->list_of_users[0], (const char*)client_packet.source, MAX_NAME);
-
+        printf("HERE!!!!!!!!\n");
         // now we need to insert the session into a session queue.
         new_session->next_session = NULL;
 
