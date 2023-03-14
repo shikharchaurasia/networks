@@ -310,9 +310,10 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                     flag = 1;
                     break;
                 }
+                sptr = sptr->next_session;
             }
         }
-        
+        printf("F%d\n", flag);
         // if sessionID already exists, send a NS_NAK.
         if(flag == 1){
             // send NS_NAK
@@ -323,15 +324,17 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 perror("send");
                 exit(1);
             }
+            return 0;
         }
         // increment number of sessions.
         count_sessions = count_sessions + 1;
         // sessionID DNE - create one.
         struct session* new_session = (struct session *)malloc(sizeof(struct session));
+        printf("HHEHEHE\n");
         // assign the sessionID passed as the argument.
-        head_session->sessionID = session_id;
+        new_session->sessionID = session_id;
         // list_of_users is an array of char strings. - maximum 10 allowed per session.
-        new_session->list_of_users = (char **)calloc(MAX_SESSION, sizeof(char *));
+        new_session->list_of_users = (char **)malloc(MAX_SESSION * sizeof(char *));
 
         for(i = 0; i < MAX_SESSION; i++){
             new_session->list_of_users[i] = (char *)malloc(sizeof(char) * MAX_NAME);
