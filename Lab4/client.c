@@ -352,11 +352,11 @@ void checkCommand(char *srv_message){
     }
     else if(getType==JN_ACK){
         //join session successful here
-        
+        printf("%s\n", data);
     }
     else if(getType==JN_NAK){
         //join session not successful here
-        
+        printf("%s\n", data);
     }
     else if(getType==NS_ACK){
         //new/create session is successful here
