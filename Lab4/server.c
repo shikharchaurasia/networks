@@ -128,7 +128,6 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
     // char copy_of_client_message[MAX_DATA];
     char *copy_of_client_message = (char *)malloc(sizeof(char) * 1024);
     strcpy(copy_of_client_message, client_message);
-    // memcpy(copy_of_client_message, client_message, strlen(client_message));
     char components[4][MAX_DATA];
 
 	int i = 0;
@@ -143,7 +142,6 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
 
     client_packet.type = atoi(components[0]);
     client_packet.size = atoi(components[1]);
-    // printf("cpd: %s\n", components[3]);
     memset(client_packet.source, '\0', sizeof(client_packet.source));
     memset(client_packet.data, '\0', sizeof(client_packet.data));
 
@@ -274,6 +272,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             perror("send");
             exit(1);
         }
+        free(sendData);
 
     }
     else if(client_packet.type == LOGOUT){
@@ -306,7 +305,6 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
     
     else if(client_packet.type == JOIN){
         // message argument format: sessionID
-        // first, check if 
         int session_id = atoi((const char *)client_packet.data); 
         struct session *sptr = head_session;
         if(sptr == NULL){
@@ -396,19 +394,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             while(sptr->sessionID != old_id && sptr != NULL){
                 sptr = sptr->next_session;
             }
-            // if(sptr == NULL){
-            //     // nak
-            //     char *sendMessage = (char *)malloc(sizeof(char) * 1024);
-            //     char data[50] = "Session DNE.\n";
-            //     sprintf(sendMessage, "%d:%d:%s:%s", LV_NAK, (int)strlen(data), client_packet.source, data);
-            //     if(send(client, sendMessage, 1024, 0) == -1){
-            //         perror("send");
-            //         exit(1);
-            //     }
-            //     free(sendMessage);
-            //     return 0;
-
-            // }
+            
             int delete_session = 0;
             for(int i = 0; i < MAX_SESSION; i++){
                 if(strcmp(sptr->list_of_users[i], (const char *)client_packet.source) == 0){
@@ -480,7 +466,6 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
     else if(client_packet.type == NEW_SESS){
         // message argument format: sessionID
         // check if sessionID already exists or not.
-        // printf("%s\n", client_packet.data);
         int session_id = atoi((const char *)client_packet.data); 
         // printf("SESSION ID IS %d\n", session_id);
         struct session *sptr = head_session;
@@ -494,7 +479,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 sptr = sptr->next_session;
             }
         }
-        // printf("F%d\n", flag);
+        
         // if sessionID already exists, send a NS_NAK.
         if(flag == 1){
             // send NS_NAK
@@ -545,9 +530,6 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             perror("send");
             exit(1);
         }
-        // for later
-
-        // int existing_sesh = 0;
         for(i = 0; i < userID; i++){
             if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
                 // only if user is logged in, log them out.
