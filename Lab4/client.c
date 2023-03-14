@@ -256,7 +256,7 @@ int commandControlName(char* command){
         return CREATE_SESS;
     }
     if(strcmp(command, "/list") == 0 || strcmp(command, "/list\n") == 0){
-        return LIST;
+        return QUERY;
     }
     if(strcmp(command, "/quit") == 0 || strcmp(command, "/quit\n") == 0){
         return EXIT;
