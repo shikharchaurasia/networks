@@ -54,6 +54,12 @@ struct message {
     unsigned char data[MAX_DATA];
 };
 
+struct session_info{
+    int sessionID;
+    int clients[MAX_SESSION];
+}
+struct session_info sessions[1000];
+int num_sess_join = 0;
 
 struct user_info{
     char username[25];
