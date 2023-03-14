@@ -299,6 +299,71 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
     else if(client_packet.type == JOIN){
         // message argument format: sessionID
         // first, check if 
+        int session_id = atoi((const char *)client_packet.data); 
+        struct session *sptr = head_session;
+        if(sptr == NULL){
+            char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+            char data[50] = "Session DNE.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", JN_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+            free(sendMessage);
+            return 0;
+        }
+        int flag = 0;
+        while(sptr->sessionID != session_id){
+            sptr = sptr->next_session;
+        }
+        if(sptr == NULL){
+            // NAK - DNE
+            char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+            char data[50] = "Session DNE.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", JN_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+            free(sendMessage);
+            return 0;
+        }
+        if(sptr->sessionCount >= MAX_SESSION){
+            // NAK - OVER
+            char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+            char data[50] = "Max Limit.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", JN_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+            free(sendMessage);
+            return 0;
+        }
+        for(i = 0; i < MAX_SESSION; i++){
+            if(sptr->list_of_users[i] == NULL){
+                sptr->list_of_users[i] = (char *)malloc(sizeof(MAX_NAME));
+                strncpy(sptr->list_of_users[i], client_packet.source, MAX_NAME-1);
+                sptr->sessionCount = sptr->sessionCount + 1;
+                break;
+            }
+        }
+        for(i = 0; i < userID; i++){
+            if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
+                users[i].session_id = session_id;
+                break;
+            }
+        }
+        // ack
+        char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+        char data[50] = "Joined Session.\n";
+        sprintf(sendMessage, "%d:%d:%s:%s", JN_ACK, (int)strlen(data), client_packet.source, data);
+        if(send(client, sendMessage, 1024, 0) == -1){
+            perror("send");
+            exit(1);
+        }
+        free(sendMessage);
+        return 0;
         
     }
     else if(client_packet.type == NEW_SESS){
@@ -456,6 +521,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 }
                 free(sptr->list_of_users);
                 free(sptr);
+                count_sessions = count_sessions - 1;
             }
 
             return 0;
