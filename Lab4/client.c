@@ -331,7 +331,6 @@ void checkCommand(char *srv_message){
         numWords++;
         sepColon = strtok(NULL, ":"); // next word here
     }
-
     int getType = atoi(sepWords[0]);
     char* source = (char *)malloc(sizeof(char) * 1024);
     char* data = (char *)malloc(sizeof(char) * 1024);
@@ -355,9 +354,17 @@ void checkCommand(char *srv_message){
         //join session not successful here
         
     }
-    else if(getType==JN_NAK){
-        //join session not successful here
-        
+    else if(getType==NS_ACK){
+        //new/create session is successful here
+        printf("%s\n", data);
+    }
+    else if(getType==NS_NAK){
+        //new/create session is not successful here
+        printf("%s\n", data);
+    }
+    else if(getType==QU_ACK){
+        //query list is successful here
+        printf("%s\n", data);
     }
     else if(getType==LG_ACK){
         //join session not successful here
