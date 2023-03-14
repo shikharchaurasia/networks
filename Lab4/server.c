@@ -55,13 +55,6 @@ struct message {
     unsigned char data[MAX_DATA];
 };
 
-struct session_info{
-    int sessionID;
-    int clients[MAX_SESSION];
-}
-struct session_info sessions[1000];
-int num_sess_join = 0;
-
 struct user_info{
     char username[25];
     char password[20];
@@ -327,6 +320,26 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             free(sendMessage);
             return 0;
         }
+        int already_in_session = 0;
+        for(i = 0; i < userID; i++){
+            if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
+                if(session_id == users[i].session_id){
+                    already_in_session = 1;
+                    break;
+                }
+            }
+        }
+        if(already_in_session == 1){
+            char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+            char data[50] = "Already in session.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", JN_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+            free(sendMessage);
+            return 0;
+        }
         while(sptr->sessionID != session_id){
             sptr = sptr->next_session;
         }
@@ -414,7 +427,6 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         count_sessions = count_sessions + 1;
         // sessionID DNE - create one.
         struct session* new_session = (struct session *)malloc(sizeof(struct session));
-        printf("HHEHEHE\n");
         // assign the sessionID passed as the argument.
         new_session->sessionID = session_id;
         // list_of_users is an array of char strings. - maximum 10 allowed per session.
@@ -532,6 +544,9 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 }
                 else{
                     pptr->next_session = sptr->next_session;
+                }
+                for(i = 0; i < MAX_SESSION; i++){
+                    free(sptr->list_of_users[i]);
                 }
                 free(sptr->list_of_users);
                 free(sptr);
