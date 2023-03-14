@@ -37,7 +37,7 @@ Gunin Wasan (Student # 1007147749)
 #define LIST 16
 #define NS_NAK 17
 #define LG_ACK 18
-#define LG_NAK 19
+#define REGISTER 19
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -271,18 +271,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 break;
             }
         }
-        if(found == 0){
-            // LG_NAK
-            char sendMessage[1024];
-            char data[50] = "Not Logged In To Begin With.\n";
-            sprintf(sendMessage, "%d:%d:%s:%s", LG_NAK, (int)strlen(data), client_packet.source, data);
-            if(send(client, sendMessage, 1024, 0) == -1){
-                perror("send");
-                exit(1);
-            }
-
-        }
-        else{
+        if(found == 1){
             // LG_ACK
             char sendMessage[1024];
             char data[50] = "Logged Out.\n";

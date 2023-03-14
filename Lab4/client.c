@@ -38,7 +38,8 @@ Gunin Wasan (Student # 1007147749)
 #define CREATE_SESS 15
 #define LIST 16
 #define NS_NAK 17
-#define REGISTER 18
+#define LG_ACK 18
+#define REGISTER 19
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -256,7 +257,7 @@ int commandControlName(char* command){
         return LEAVE_SESS;
     }
     if(strcmp(command, "/createsession") == 0 || strcmp(command, "/createsession\n") == 0){
-        return CREATE_SESS;
+        return NEW_SESS;
     }
     if(strcmp(command, "/list") == 0 || strcmp(command, "/list\n") == 0){
         return QUERY;
@@ -358,7 +359,7 @@ void checkCommand(char *srv_message){
         //join session not successful here
         
     }
-    else if(getType==LOGOUT){
+    else if(getType==LG_ACK){
         //join session not successful here
         strcpy(userName,"");
         printf("%s\n", data);
