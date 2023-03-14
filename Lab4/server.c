@@ -36,9 +36,12 @@ Gunin Wasan (Student # 1007147749)
 #define CREATE_SESS 15
 #define LIST 16
 #define NS_NAK 17
+#define LG_ACK 18
+#define LG_NAK 19
+
 #define MAX_NAME 25
 #define MAX_DATA 1024
-#define MAX_SESSION 5
+#define MAX_SESSION 10
 #define USERINFO_FILE "userInfoDetails.txt"
 struct message {
     unsigned int type;
@@ -52,16 +55,19 @@ struct user_info{
     char username[25];
     char password[20];
     int user_status;
+    int session_id;
 };
 
-// struct session{
-//     int sessionID;
-//     char **list_of_users;
-//     struct session *next_session;
-// };
+struct session{
+    int sessionID;
+    int sessionCount;
+    char **list_of_users;
+    struct session *next_session;
+};
 
-// struct session head_session = NULL;
-// int count_sessions = 0;
+struct session* head_session = NULL;
+
+int count_sessions = 0;
 
 int userID = 0;
 void getUserData(struct user_info *userDetails) {
@@ -210,24 +216,24 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         int i = 0;
         char active_sessions[300] = "Active Sessions: ";
         char active_users[300] = "Active Users: ";
-        // if(count_sessions != 0){
-        //     // make sure ack message has 0 in sessions.
-        //     struct session *sptr = head_session;
-        //     while(sptr != NULL && i <= 4){
-        //         char sess[5];
-        //         sprintf(sess, "%d",sptr->sessionID);
-        //         strcat(active_sessions, sess);
-        //         strcat(active_sessions, " ");
-        //         sptr = sptr->next;
-        //         i++;
-        //     }
-        // }
-        // else{
+        if(count_sessions != 0){
+            // make sure ack message has 0 in sessions.
+            struct session *sptr = head_session;
+            while(sptr != NULL && i <= 4){
+                char sess[5];
+                sprintf(sess, "%d",sptr->sessionID);
+                strcat(active_sessions, sess);
+                strcat(active_sessions, " ");
+                sptr = sptr->next_session;
+                i++;
+            }
+        }
+        else{
             char msg[10] = "None.";
             strcat(active_sessions, msg);
-        // }
+        }
         int found = 0;
-        for(i = 0; i < 5; i++){
+        for(i = 0; i < userID; i++){
             if(users[i].user_status == 1){
                 found = 1;
                 strcat(active_users, users[i].username);
@@ -254,88 +260,123 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
     }
     else if(client_packet.type == LOGOUT){
         // message argument format: none
-        for(i = 0; i < 5; i++){
+        int found = 0;
+        for(i = 0; i < userID; i++){
             if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
                 // only if user is logged in, log them out.
                 if(users[i].user_status == 1){
+                    found = 1;
                     users[i].user_status = 0;
                 }
                 break;
             }
         }
+        if(found == 0){
+            // LG_NAK
+            char sendMessage[1024];
+            char data[50] = "Not Logged In To Begin With.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", LG_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+
+        }
+        else{
+            // LG_ACK
+            char sendMessage[1024];
+            char data[50] = "Logged Out.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", LG_ACK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+        }
+        
+    }
+    
+    else if(client_packet.type == JOIN){
+        // message argument format: sessionID
+        // first, check if 
+        
+    }
+    else if(client_packet.type == NEW_SESS){
+        // message argument format: sessionID
+        
+        // check if sessionID already exists or not.
+
+        int session_id = atoi(components[3]); 
+        struct session *sptr = head_session;
+        int flag = 0;
+        if(head_session != NULL){
+            while(sptr != NULL){
+                if(sptr->sessionID == session_id){
+                    flag = 1;
+                    break;
+                }
+            }
+        }
+        // if sessionID already exists, send a NS_NAK.
+        if(flag == 1){
+            // send NS_NAK
+            char sendMessage[1024];
+            char data[25] = "Session Already Exists.";
+            sprintf(sendMessage, "%d:%d:%s:%s", NS_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+        }
+        // increment number of sessions.
+        count_sessions = count_sessions + 1;
+        // sessionID DNE - create one.
+        struct session* new_session = (struct session *)malloc(sizeof(struct session));
+        // assign the sessionID passed as the argument.
+        head_session->sessionID = session_id;
+        // list_of_users is an array of char strings. - maximum 10 allowed per session.
+        new_session->list_of_users = (char **)calloc(MAX_SESSION, sizeof(char *));
+
+        for(i = 0; i < MAX_SESSION; i++){
+            new_session->list_of_users[i] = (char *)malloc(sizeof(char) * MAX_NAME);
+        }
+        
+        // assign the first user as the one creating the session.
+        new_session->sessionCount = 1;
+        strncpy(new_session->list_of_users[0], (const char*)client_packet.source, MAX_NAME);
+
+        // now we need to insert the session into a session queue.
+        new_session->next_session = NULL;
+
+        if(head_session == NULL){
+            head_session = new_session;
+        }
+        else{
+            sptr = head_session;
+            while(sptr->next_session != NULL){
+                sptr = sptr->next_session;
+            }
+            sptr->next_session = new_session;
+        }
+        // send ACK for the session just created.
+        char sendMessage[1024];
+        char data[50] = "New Session Created\n";
+        sprintf(sendMessage, "%d:%d:%s:%s", NEW_SESS, (int)strlen(data), client_packet.source, data);
+        if(send(client, sendMessage, 1024, 0) == -1){
+            perror("send");
+            exit(1);
+        }
+        
+    }
+    
+    else if(client_packet.type == LEAVE_SESS){
+        // message argument format: none
+        // check which session you are a part of.
         
     }
     else{
         return MESSAGE;
     }
     return 0;
-    // else if(client_packet.type == JOIN){
-    //     // message argument format: sessionID
-
-        
-    // }
-    // else if(client_packet.type == NEW_SESS){
-    //     // message argument format: sessionID
-    //     // if count = 5, no more sessions can be created.
-    //     // extract sessionID
-    //     if(count_sessions >= 5){
-    //         // send NS_NAK
-    //         char sendMessage[1024];
-    //         char data[25] = "Max Sessions Created.";
-    //         sprintf(sendMessage, "%d:%d:%s:%s", NS_NAK, (int)strlen(data), client_packet.source, data);
-    //         if(send(client, sendMessage, 1024, 0) == -1){
-    //             perror("send");
-    //             exit(1);
-    //         }
-    //     }
-    //     // check if sessionID already exists or not.
-    //     int session_id = atoi(components[3]); 
-    //     struct session *sptr = head_session;
-    //     int flag = 0;
-    //     if(head_session != NULL){
-    //         while(sptr != NULL){
-    //             if(sptr->sessionID == session_id){
-    //                 flag = 1;
-    //                 break;
-    //             }
-    //         }
-    //     }
-    //     if(flag == 1){
-    //         // send NS_NAK
-    //         char sendMessage[1024];
-    //         char data[25] = "Session Already Exists.";
-    //         sprintf(sendMessage, "%d:%d:%s:%s", NS_NAK, (int)strlen(data), client_packet.source, data);
-    //         if(send(client, sendMessage, 1024, 0) == -1){
-    //             perror("send");
-    //             exit(1);
-    //         }
-    //     }
-
-    //     struct session* new_session = (struct session *)malloc(sizeof(struct session));
-    //     new_session->list_of_users = (char **)malloc(sizeof(char*));
-    //     new_session->list_of_users = NULL;
-
-    //     head_session->next_session = NULL;
-    //     head_session->sessionID = session_id;
-
-    //     if(head_session == NULL){
-    //         head_session = new_session;
-    //         head_session->sessionID = ;
-    //     }
-
-    //     sptr = head_session;
-    //     while(sptr->next_session != NULL){
-    //         sptr = sptr->next;
-    //     }
-
-
-        
-    // }
-    
-    // else if(client_packet.type == LEAVE_SESS){
-    //     // message argument format: none
-        
-    // }
 
 }
 
