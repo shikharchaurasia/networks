@@ -254,7 +254,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
     }
     else if(client_packet.type == LOGOUT){
         // message argument format: none
-        for(i = 0; i < 5; i++){
+        for(i = 0; i < userID; i++){
             if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
                 // only if user is logged in, log them out.
                 if(users[i].user_status == 1){
