@@ -344,8 +344,6 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         }
         sptr = head_session;
         while(sptr->sessionID != session_id && sptr != NULL){
-            printf("%d\n", sptr->sessionID);
-            printf("%d\n", session_id);
             if(sptr->next_session == NULL){
                 sptr = NULL;
                 break;
@@ -706,6 +704,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             return 0;
         }
         else{
+            printf("%s: %s\n", client_packet.source, client_packet.data);
             return sessionID;
         }
     }
@@ -868,7 +867,7 @@ int main(int argc, char **argv)
                                     }
                                 }
                             }
-                            printf("%s\n", text_buffer);
+                            printf("Entire Message received: %s\n", text_buffer);
                         }
                         else{
                             printf("COMMAND: ");
