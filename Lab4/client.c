@@ -212,7 +212,6 @@ void* sendThread(void* sendSocket) {
             free(sendMessage);
             free(message2);
         }
-        memset(data,'\0',strlen(data));
         free(data);
     }
 
