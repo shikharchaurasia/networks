@@ -115,8 +115,10 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
     // parse the incoming client message into a packet.
     struct message client_packet;
     // break down the string into individual components.
-    char copy_of_client_message[MAX_DATA];
-    memcpy(copy_of_client_message, client_message, strlen(client_message));
+    // char copy_of_client_message[MAX_DATA];
+    char *copy_of_client_message = (char *)malloc(sizeof(char) * 1024);
+    strcpy(copy_of_client_message, client_message);
+    // memcpy(copy_of_client_message, client_message, strlen(client_message));
     char components[4][MAX_DATA];
 
 	int i = 0;
@@ -310,6 +312,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 }
             }
         }
+        
         // if sessionID already exists, send a NS_NAK.
         if(flag == 1){
             // send NS_NAK
