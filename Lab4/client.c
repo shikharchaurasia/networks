@@ -40,6 +40,10 @@ Gunin Wasan (Student # 1007147749)
 #define NS_NAK 17
 #define LG_ACK 18
 #define REGISTER 19
+#define LV_ACK 20
+#define LV_NAK 21
+#define RG_ACK 22
+#define RG_NAK 23
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -362,8 +366,24 @@ void checkCommand(char *srv_message){
         //new/create session is not successful here
         printf("%s\n", data);
     }
+    else if(getType==LV_ACK){
+        //leave current session is successful here
+        printf("%s\n", data);
+    }
+    else if(getType==LV_NAK){
+        //leave current session is not successful here
+        printf("%s\n", data);
+    }
     else if(getType==QU_ACK){
         //query list is successful here
+        printf("%s\n", data);
+    }
+    else if(getType==RG_ACK){
+        //registration is successful here
+        printf("%s\n", data);
+    }
+    else if(getType==RG_NAK){
+        //registration is not successful here
         printf("%s\n", data);
     }
     else if(getType==LG_ACK){
