@@ -42,6 +42,7 @@ Gunin Wasan (Student # 1007147749)
 #define LV_NAK 21
 #define RG_ACK 22
 #define RG_NAK 23
+#define NJ_NAK 24
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -66,6 +67,7 @@ struct user_info{
     char password[20];
     int user_status;
     int session_id;
+    int client_id;
 };
 
 struct session{
@@ -95,6 +97,7 @@ void getUserData(struct user_info *userDetails) {
         sscanf(getUserDetails, "%s %s", userDetails[userID].username, userDetails[userID].password);
         userDetails[userID].user_status = 0; //initially all logged out
         userDetails[userID].session_id = 0; //initially no sessions
+        userDetails[userID].client_id = -1; //initially no client
         userID++;
     }
     fclose(userFile);    
@@ -116,6 +119,7 @@ int registerUserData(struct user_info *userDetails, char *userName, char* userPa
     strcpy(userDetails[userID].password, userPassword);
     userDetails[userID].user_status = 0; //initially all logged out
     userDetails[userID].session_id = 0; //initially no sessions
+    userDetails[userID].client_id = -1; //initially no client
     userID++;
     fclose(userFile);
     return 1;
@@ -184,6 +188,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                     // if the password was correct.
                     if(strcmp(users[i].password, arguments[1]) == 0){ 
                         users[i].user_status = 1;
+                        users[i].client_id = client; //assigned the client logged in.
                         char sendMessage[1024];
                         char data[25] = "Login Successful.";
                         sprintf(sendMessage, "%d:%d:%s:%s", LO_ACK, (int)strlen(data), client_packet.source, data);
@@ -287,6 +292,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 if(users[i].user_status == 1){
                     found = 1;
                     users[i].user_status = 0;
+                    users[i].client_id = -1; //assign back to -1.
                 }
                 break;
             }
@@ -321,7 +327,6 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             free(sendMessage);
             return 0;
         }
-        int flag = 0;
         while(sptr->sessionID != session_id){
             sptr = sptr->next_session;
         }
@@ -352,7 +357,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         for(i = 0; i < MAX_SESSION; i++){
             if(sptr->list_of_users[i] == NULL){
                 sptr->list_of_users[i] = (char *)malloc(sizeof(MAX_NAME));
-                strncpy(sptr->list_of_users[i], client_packet.source, MAX_NAME-1);
+                strncpy(sptr->list_of_users[i], (const char *)client_packet.source, MAX_NAME-1);
                 sptr->sessionCount = sptr->sessionCount + 1;
                 break;
             }
@@ -581,7 +586,27 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         free(getData);
     }
     else{
-        return MESSAGE;
+        int sessionID = -1;
+        for(int i=0; i<userID; i++){
+            if(strcmp(users[i].username,(const char *)client_packet.source)==0){
+                sessionID=users[i].session_id;
+                break;
+            }
+        }
+        if(sessionID==-1 || sessionID==0){
+            char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+            char data[50] = "Please join a session to send a message.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", NJ_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+            free(sendMessage);
+            return 0;
+        }
+        else{
+            return sessionID;
+        }
     }
     return 0;
 
@@ -716,14 +741,28 @@ int main(int argc, char **argv)
                     else {
                         // we got some data from a client
                         int checkCommand = parse_and_execute(users, i, text_buffer);
-                        if(checkCommand==MESSAGE){
+                        if(checkCommand!=0){
                             for(j = 0; j <= fdmax; j++) {
                                 // send to everyone!
                                 if (FD_ISSET(j, &master)) {
                                     // except the listener and ourselves
                                     if (j != srv_socket_fd && j != i) {
-                                        if (send(j, text_buffer, nbytes, 0) == -1) {
-                                            perror("send");
+
+                                        // find user name associated with this client id
+                                        // then find the session id with the username
+                                        // check if session id matches or not.
+
+                                        int sessionID = -1;
+                                        for(int i=0; i<userID; i++){
+                                            if(users[i].client_id==j){
+                                                sessionID=users[i].session_id;
+                                                break;
+                                            }
+                                        }
+                                        if(sessionID==checkCommand){
+                                            if (send(j, text_buffer, nbytes, 0) == -1) {
+                                                perror("send");
+                                            }
                                         }
                                     }
                                 }

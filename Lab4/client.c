@@ -44,6 +44,7 @@ Gunin Wasan (Student # 1007147749)
 #define LV_NAK 21
 #define RG_ACK 22
 #define RG_NAK 23
+#define NJ_NAK 24
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -389,6 +390,10 @@ void checkCommand(char *srv_message){
     else if(getType==LG_ACK){
         //join session not successful here
         strcpy(userName,"");
+        printf("%s\n", data);
+    }
+    else if(getType==NJ_NAK){
+        //not joined session is not successful here
         printf("%s\n", data);
     }
     else{
