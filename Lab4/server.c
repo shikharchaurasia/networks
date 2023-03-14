@@ -84,6 +84,7 @@ void getUserData(struct user_info *userDetails) {
         // separate through space and put them in userDetails struct.
         sscanf(getUserDetails, "%s %s", userDetails[userID].username, userDetails[userID].password);
         userDetails[userID].user_status = 0; //initially all logged out
+        userDetails[userID].session_id = 0; //initially all logged out
         userID++;
     }
     fclose(userFile);    
@@ -278,6 +279,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 break;
             }
         }
+        
         if(found == 1){
             // LG_ACK
             char sendMessage[1024];
@@ -339,11 +341,9 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         for(i = 0; i < MAX_SESSION; i++){
             new_session->list_of_users[i] = (char *)malloc(sizeof(char) * MAX_NAME);
         }
-        printf("HERE!!!\n");
         // assign the first user as the one creating the session.
         new_session->sessionCount = 1;
         strncpy(new_session->list_of_users[0], (const char*)client_packet.source, MAX_NAME);
-        printf("HERE!!!!!!!!\n");
         // now we need to insert the session into a session queue.
         new_session->next_session = NULL;
 
@@ -360,17 +360,28 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         // send ACK for the session just created.
         char sendMessage[1024];
         char data[50] = "New Session Created\n";
-        sprintf(sendMessage, "%d:%d:%s:%s", NEW_SESS, (int)strlen(data), client_packet.source, data);
+        sprintf(sendMessage, "%d:%d:%s:%s", NS_ACK, (int)strlen(data), client_packet.source, data);
         if(send(client, sendMessage, 1024, 0) == -1){
             perror("send");
             exit(1);
         }
-        
+        // for later
+
+        // int existing_sesh = 0;
+        for(i = 0; i < userID; i++){
+            if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
+                // only if user is logged in, log them out.
+                users[i].session_id = session_id;
+                break;
+            }
+        }
+        return 0; 
     }
     
     else if(client_packet.type == LEAVE_SESS){
         // message argument format: none
         // check which session you are a part of.
+
         
     }
     else{
