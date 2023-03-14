@@ -40,7 +40,8 @@ Gunin Wasan (Student # 1007147749)
 #define REGISTER 19
 #define LV_ACK 20
 #define LV_NAK 21
-
+#define RG_ACK 22
+#define RG_NAK 23
 
 #define MAX_NAME 25
 #define MAX_DATA 1024
@@ -87,19 +88,19 @@ void getUserData(struct user_info *userDetails) {
         // separate through space and put them in userDetails struct.
         sscanf(getUserDetails, "%s %s", userDetails[userID].username, userDetails[userID].password);
         userDetails[userID].user_status = 0; //initially all logged out
-        userDetails[userID].session_id = 0; //initially all logged out
+        userDetails[userID].session_id = 0; //initially no sessions
         userID++;
     }
     fclose(userFile);    
 }
 
-void registerUserData(struct user_info *userDetails, char *userName, char* userPassword) {
+int registerUserData(struct user_info *userDetails, char *userName, char* userPassword) {
     FILE *userFile = fopen(USERINFO_FILE, "a");
     if (userFile == NULL)
     {
         //If file doesnt open we dont register
         printf("Couldnt register user details. Please try again.\n");
-        return;
+        return -1;
         // exit(0);
     }
     // first we will append the data to the file.
@@ -108,8 +109,10 @@ void registerUserData(struct user_info *userDetails, char *userName, char* userP
     strcpy(userDetails[userID].username, userName);
     strcpy(userDetails[userID].password, userPassword);
     userDetails[userID].user_status = 0; //initially all logged out
+    userDetails[userID].session_id = 0; //initially no sessions
     userID++;
     fclose(userFile);
+    return 1;
 }
 
 
@@ -538,10 +541,38 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             free(sendMessage);
         }
         return 0;
-
-
-
         
+    }
+    else if(client_packet.type == REGISTER){
+        char *getData = (char *)malloc(sizeof(char) * 1024);
+        strcpy(getData,(const char *)client_packet.data);
+        char *userName = (char *)malloc(sizeof(char) * 1024);
+        char *userPassword = (char *)malloc(sizeof(char) * 1024);
+        sscanf(getData, "%s %s", userName, userPassword);
+        int registered=registerUserData(users, userName, userPassword);
+        if(registered==-1){
+            char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+            char data[50] = "User could not be registered.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", RG_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+            free(sendMessage);
+        }
+        else{
+            char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+            char data[50] = "User Registered. Now please login to continue.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", RG_ACK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+            free(sendMessage);
+        }
+        free(userPassword);
+        free(userName);
+        free(getData);
     }
     else{
         return MESSAGE;
