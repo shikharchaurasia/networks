@@ -222,8 +222,8 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         // list all active sessions and users.
         // first the sessions.
         int i = 0;
-        char active_sessions[300] = "Active Sessions: ";
-        char active_users[300] = "Active Users: ";
+        char active_sessions[300] = "Active Sessions = ";
+        char active_users[300] = "Active Users =  ";
         if(count_sessions != 0){
             // make sure ack message has 0 in sessions.
             struct session *sptr = head_session;
@@ -252,14 +252,14 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             char msg[10] = "None.";
             strcat(active_users, msg);
         }
-
-        char data[700];
-        strcat(data, active_users);
-        strcat(data, "\n");
-        strcat(data, active_sessions);
-        strcat(data, "\n");
-        char sendMessage[1024];
-        sprintf(sendMessage, "%d:%d:%s:%s", QU_ACK, (int)strlen(data), client_packet.source, data);
+        char *sendData = (char *)malloc(sizeof(char) * 1024);
+        // char data[700];
+        strcat(sendData, active_users);
+        strcat(sendData, "\n");
+        strcat(sendData, active_sessions);
+        strcat(sendData, "\n");
+        char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+        sprintf(sendMessage, "%d:%ld:%s:%s", QU_ACK, strlen(sendData), client_packet.source, sendData);
         if(send(client, sendMessage, 1024, 0) == -1){
             perror("send");
             exit(1);
