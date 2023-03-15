@@ -74,7 +74,10 @@ struct session* head_session = NULL;
 
 int count_sessions = 0;
 
-int userID = 0;
+int userID = 0; // total number of users is stored in this.
+
+// getUserData helps to get all the user details and store in user info struct
+// we read the user details from a file.
 void getUserData(struct user_info *userDetails) {
     FILE *userFile = fopen(USERINFO_FILE, "r");
     if (userFile == NULL)
@@ -96,6 +99,8 @@ void getUserData(struct user_info *userDetails) {
     fclose(userFile);    
 }
 
+// registerUserData registers a new user and stores in user info struct
+// we also append to user data file so it is available after switching off server as well.
 int registerUserData(struct user_info *userDetails, char *userName, char* userPassword) {
     FILE *userFile = fopen(USERINFO_FILE, "a");
     if (userFile == NULL)
@@ -667,6 +672,8 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         free(getData);
     }
     else{
+        // in this case we have to send a message
+        // for that first we check if the user is in session or not
         int sessionID = -1;
         for(int i=0; i<userID; i++){
             if(strcmp(users[i].username,(const char *)client_packet.source)==0){
@@ -675,6 +682,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             }
         }
         if(sessionID==-1 || sessionID==0){
+            // this means that the user is not in any session
             char *sendMessage = (char *)malloc(sizeof(char) * 1024);
             char data[50] = "Please join a session to send a message.\n";
             sprintf(sendMessage, "%d:%d:%s:%s", NJ_NAK, (int)strlen(data), client_packet.source, data);
@@ -686,11 +694,12 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             return 0;
         }
         else{
+            // if user is in session, we return the session ID.
             printf("%s: %s\n", client_packet.source, client_packet.data);
             return sessionID;
         }
     }
-    return 0;
+    return 0; 
 
 }
 
@@ -825,9 +834,10 @@ int main(int argc, char **argv)
                         int checkCommand = parse_and_execute(users, i, text_buffer);
                         if(checkCommand!=0){
                             for(j = 0; j <= fdmax; j++) {
-                                // send to everyone!
                                 if (FD_ISSET(j, &master)) {
-                                    // except the listener and ourselves
+                                    // we dont send the message to the client sending this message
+                                    // and we dont send it to the server as well
+                                    // so we add a check for that
                                     if (j != srv_socket_fd && j != i) {
 
                                         // find user name associated with this client id
@@ -841,7 +851,9 @@ int main(int argc, char **argv)
                                                 break;
                                             }
                                         }
+                                        // sessionID is -1 if user is not found/user is not in any session
                                         if(sessionID==checkCommand){
+                                            //only if session matches we send the message
                                             if (send(j, text_buffer, nbytes, 0) == -1) {
                                                 perror("send");
                                             }

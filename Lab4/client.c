@@ -115,7 +115,7 @@ int main(int argc, char **argv)
     pthread_t sending; //  seding thread
     
     userName = (char *)malloc(sizeof(char) * 1024);
-    //  Now we will create a receiving thread, 
+    // Now we will create a receiving thread, 
     // here rcvThread is the function that handles receiving messages parallely
     if (pthread_create(&receiving, NULL, rcvThread, (void*) &srv_socket_fd) != 0) {
         // error in receiving thread
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    //  Then we will create a sending thread
+    // Then we will create a sending thread
     // here sendThread is the function that handles sending messages parallely
     if (pthread_create(&sending, NULL, sendThread, (void*) &srv_socket_fd) != 0) {
         // error in sending thread
@@ -138,21 +138,25 @@ int main(int argc, char **argv)
     free(userName);
     return 0;
 }
-
+// sending thread functionality
+// the thread is to take input from user and send it to the server.
 void* sendThread(void* sendSocket) {
     int srv_socket_fd = *((int*)sendSocket);
     char *message = (char *)malloc(sizeof(char) * 1024);
 
     while (1) {
         // printf("Enter text message: ");
-        fgets(message, 1024, stdin);
+        fgets(message, 1024, stdin); // we take line input here
         char *message2 = (char *)malloc(sizeof(char) * 1024);
         strcpy(message2, message);
+        // the format of any command is separated by space " "
+        // so we use strtok to separate the message by space.
         char *sepSpace = strtok(message, " ");  
         char **sepWords = (char **)malloc(sizeof(char *) * 1024);  
         int numWords = 0;
         int allowToSend = 0;
-
+        // with the sentence being separated by space, we need to store the words also
+        // sepWords will store all the words and numWords keep word count.
         while (sepSpace != NULL) {
             sepWords[numWords] = (char *)malloc(sizeof(char) * (strlen(sepSpace) + 1));  
             strcpy(sepWords[numWords], sepSpace); 
@@ -163,10 +167,17 @@ void* sendThread(void* sendSocket) {
         char* source = userName;
         char* data = (char *)malloc(sizeof(char) * 1024);
         if(numWords>0){
+            // commands start with / so we check first letter of first word
             if(sepWords[0][0]=='/'){
-                // so now we check if the command is valid or not.
-                getType=commandControlName(sepWords[0]);
+                // now we check if the command is valid or not.
+                getType=commandControlName(sepWords[0]); // function returns type of command
+                // this is used for identifying if the given message is a command or not
                 if(getType !=-1){
+                    // if it is a command
+                    // we have a check if there are valid arguments inputted or not
+                    // commandControlArgs function returns the number of arguments for each command.
+                    // numWords-1 is done because all the words except the command 
+                    // in the sentence are arguments.
                     if(commandControlArgs(sepWords[0],srv_socket_fd) == (numWords-1)){
                         // all good we can go ahead.
                         char *dataMessage = (char *)malloc(sizeof(char) * 1024);
