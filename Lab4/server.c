@@ -125,12 +125,11 @@ int registerUserData(struct user_info *userDetails, char *userName, char* userPa
 
 
 // based on different TYPE, we do different executions/responses.
-// client reps the file descriptor; message reps the command user has input
+// client reps the file descriptor; client_message reps the command user has input
 int parse_and_execute(struct user_info *users, int client, char *client_message){
     // parse the incoming client message into a packet.
     struct message client_packet;
     // break down the string into individual components.
-    // char copy_of_client_message[MAX_DATA];
     char *copy_of_client_message = (char *)malloc(sizeof(char) * 1024);
     strcpy(copy_of_client_message, client_message);
     char components[4][MAX_DATA];
@@ -152,9 +151,8 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
 
     strncpy((char *)client_packet.source, components[2], MAX_NAME);
     strncpy((char *)client_packet.data, components[3], MAX_DATA);
-
-    // first extract message contents from the packet.
-
+    
+    // if command type is LOGIN
     if(client_packet.type == LOGIN){
         // data format: clientID:password:serverIP:server-port
         // first extract your data.
@@ -230,13 +228,15 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             }
         }
     }
+    // if command type is LIST/Query
     else if(client_packet.type == QUERY){
         // message argument format: none
         // list all active sessions and users.
-        // first the sessions.
+        // first the sessions, then all the users.
         int i = 0;
         char active_sessions[300] = "Active Sessions = ";
         char active_users[300] = "Active Users =  ";
+        // append all the sessions
         if(count_sessions != 0){
             // make sure ack message has 0 in sessions.
             struct session *sptr = head_session;
@@ -253,6 +253,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             char msg[10] = "None.";
             strcat(active_sessions, msg);
         }
+        // append all the users
         int found = 0;
         for(i = 0; i < userID; i++){
             if(users[i].user_status == 1){
@@ -280,6 +281,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         free(sendData);
 
     }
+    // if command type is LOGOUT
     else if(client_packet.type == LOGOUT){
         // message argument format: none
         int found = 0;
@@ -307,12 +309,14 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         }
         
     }
+    // if user wants to join session
     
     else if(client_packet.type == JOIN){
         // message argument format: sessionID
         int session_id = atoi((const char *)client_packet.data); 
         struct session *sptr = head_session;
         if(sptr == NULL){
+            // if no sessions exist
             char *sendMessage = (char *)malloc(sizeof(char) * 1024);
             char data[50] = "Session DNE.\n";
             sprintf(sendMessage, "%d:%d:%s:%s", JN_NAK, (int)strlen(data), client_packet.source, data);
@@ -323,7 +327,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             free(sendMessage);
             return 0;
         }
-
+        // check if user is already in the same session they're trying to join
         int already_in_session = 0;
         for(i = 0; i < userID; i++){
             if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
@@ -345,6 +349,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             free(sendMessage);
             return 0;
         }
+        // check if sessionID exists or not.
         sptr = head_session;
         while(sptr->sessionID != session_id && sptr != NULL){
             if(sptr->next_session == NULL){
@@ -366,6 +371,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             free(sendMessage);
             return 0;
         }
+        // if one session has exceeded max (10) no of users
         if(sptr->sessionCount >= MAX_SESSION){
             // NAK - OVER
             char *sendMessage = (char *)malloc(sizeof(char) * 1024);
@@ -378,6 +384,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             free(sendMessage);
             return 0;
         }
+        // allocate user
         for(i = 0; i < MAX_SESSION; i++){
             if(sptr->list_of_users[i] == NULL){
                 sptr->list_of_users[i] = (char *)malloc(sizeof(MAX_NAME));
@@ -386,6 +393,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 break;
             }
         }
+        // switch id if old one wasn't 0
         int old_id = 0;
         for(i = 0; i < userID; i++){
             if(strcmp(users[i].username, (const char *)client_packet.source) == 0){
@@ -557,8 +565,8 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 }
             }
         }
+        // if part of session
         if(sesh_id != 0){
-            // int found = 0;
             struct session *sptr = head_session;
             while(sptr->sessionID != sesh_id && sptr != NULL){
                 sptr = sptr->next_session;
@@ -576,6 +584,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 return 0;
 
             }
+            // delete from session and decrement count
             int delete_session = 0;
             for(int i = 0; i < MAX_SESSION; i++){
                 if(strcmp(sptr->list_of_users[i], (const char *)client_packet.source) == 0){
@@ -603,6 +612,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
                 exit(1);
             }
             free(sendMessage);
+            // if nobody in session delete session
             if(delete_session == 1){
                 sptr = head_session;
                 struct session* pptr = NULL;
@@ -628,6 +638,7 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
 
         }
         else{
+            // user isnt in session.
             char *sendMessage = (char *)malloc(sizeof(char) * 1024);
             char data[50] = "User Not in Session.\n";
             sprintf(sendMessage, "%d:%d:%s:%s", LV_NAK, (int)strlen(data), client_packet.source, data);
