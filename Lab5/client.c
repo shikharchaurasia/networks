@@ -202,11 +202,11 @@ void* sendThread(void* sendSocket) {
                         getSize = strlen(data);
                     }
                     else{
-                        printf("Please enter correct number of arguments. \n");
+                        printf("\033[1;31mPlease enter correct number of arguments. \n\033[0m\n");
                     }
                 }
                 else{
-                    printf("Please enter a valid command. \n");
+                    printf("\033[1;31mPlease enter a valid command. \n\033[0m\n");
                 }
             }
             else{
@@ -372,7 +372,8 @@ void checkCommand(char *srv_message){
     else if(getType==LO_NAK){
         //login not successful here
         strcpy(userName,"");
-        printf("%s\n", data);
+        printf("\033[1;31m%s\n\033[0m\n", data); // we are printing in red color here
+        // printf("%s\n", data);
     }
     else if(getType==JN_ACK){
         //join session successful here
@@ -380,7 +381,8 @@ void checkCommand(char *srv_message){
     }
     else if(getType==JN_NAK){
         //join session not successful here
-        printf("%s\n", data);
+        printf("\033[1;31m%s\n\033[0m\n", data); // we are printing in red color here
+        // printf("%s\n", data);
     }
     else if(getType==NS_ACK){
         //new/create session is successful here
@@ -388,7 +390,8 @@ void checkCommand(char *srv_message){
     }
     else if(getType==NS_NAK){
         //new/create session is not successful here
-        printf("%s\n", data);
+        printf("\033[1;31m%s\n\033[0m\n", data);
+        // printf("%s\n", data);
     }
     else if(getType==LV_ACK){
         //leave current session is successful here
@@ -396,7 +399,8 @@ void checkCommand(char *srv_message){
     }
     else if(getType==LV_NAK){
         //leave current session is not successful here
-        printf("%s\n", data);
+        printf("\033[1;31m%s\n\033[0m\n", data);
+        // printf("%s\n", data);
     }
     else if(getType==QU_ACK){
         //query list is successful here
@@ -408,32 +412,38 @@ void checkCommand(char *srv_message){
     }
     else if(getType==RG_NAK){
         //registration is not successful here
-        printf("%s\n", data);
+        printf("\033[1;31m%s\n\033[0m\n", data);
+        // printf("%s\n", data);
     }
     else if(getType==LG_ACK){
-        //join session not successful here
+        //logout is successful here
         strcpy(userName,"");
         printf("%s\n", data);
     }
     else if(getType==NJ_NAK){
         //not joined session is not successful here
-        printf("%s\n", data);
+        printf("\033[1;31m%s\n\033[0m\n", data);
+        // printf("%s\n", data);
     }
     else if(getType==PERSONAL_NACK_LOGGEDIN){
         //other user is not logged in here
-        printf("%s\n", data);
+        printf("\033[1;31m%s\n\033[0m\n", data);
+        // printf("%s\n", data);
     }
     else if(getType==PERSONAL_NACK_FOUND){
         //other user is not found here
-        printf("%s\n", data);
+        printf("\033[1;31m%s\n\033[0m\n", data);
+        // printf("%s\n", data);
     }
     else if(getType==PERSONAL_NACK){
         //other user is not found here
-        printf("%s\n", data);
+        printf("\033[1;31m%s\n\033[0m\n", data);
+        // printf("%s\n", data);
     }
     else if(getType==PERSONAL_ACK){
         //personal message received is successful here
-        printf("\n[Personal] %s: %s\n",source, data);
+        printf("\033[1m\n[Personal] \033[0m");
+        printf("%s: %s\n",source, data);
     }
     else{
         if(strcmp(userName,"")!=0)
