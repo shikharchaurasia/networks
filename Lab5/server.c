@@ -117,6 +117,16 @@ int registerUserData(struct user_info *userDetails, char *userName, char* userPa
         return -1;
         // exit(0);
     }
+
+    // we will now check if this username exists or not
+    for(int i = 0; i < userID; i++){
+        // if the ith user has the same username as the packet's username
+        if(strcmp(userDetails[i].username, userName) == 0){
+            // username exists.
+            printf("Username already exists. Please login to continue.\n");
+            return -2;
+        }
+    }
     // first we will append the data to the file.
     fprintf(userFile, "\n%s %s", userName, userPassword);
     // now we will add the data to user_info struct as well
@@ -664,6 +674,16 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
             }
             free(sendMessage);
         }
+        else if(registered==-2){
+            char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+            char data[50] = "Username already exists.\n";
+            sprintf(sendMessage, "%d:%d:%s:%s", RG_NAK, (int)strlen(data), client_packet.source, data);
+            if(send(client, sendMessage, 1024, 0) == -1){
+                perror("send");
+                exit(1);
+            }
+            free(sendMessage);
+        }
         else{
             char *sendMessage = (char *)malloc(sizeof(char) * 1024);
             char data[50] = "User Registered. Now please login to continue.\n";
@@ -903,6 +923,19 @@ int main(int argc, char **argv)
                         printf("%s\n", text_buffer);
                         if (nbytes == 0) {
                             // connection closed
+                            // log the user out now then.
+
+                            for(int j = 0; j < userID; j++){
+                                if(users[j].client_id == i){
+                                    // only if user is logged in, log them out.
+                                    if(users[j].user_status == 1){
+                                        users[j].user_status = 0;
+                                        users[j].client_id = -1; //assign back to -1.
+                                    }
+                                    break;
+                                }
+                            }
+
                             printf("selectserver: socket %d hung up\n", i);
                         } else {
                             perror("recv");

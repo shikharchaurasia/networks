@@ -408,10 +408,12 @@ void checkCommand(char *srv_message){
     }
     else if(getType==RG_ACK){
         //registration is successful here
+        strcpy(userName,"");
         printf("%s\n", data);
     }
     else if(getType==RG_NAK){
         //registration is not successful here
+        strcpy(userName,"");
         printf("\033[1;31m%s\n\033[0m\n", data);
         // printf("%s\n", data);
     }
