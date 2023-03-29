@@ -52,7 +52,10 @@ Gunin Wasan (Student # 1007147749)
 #define MAX_NAME 25
 #define MAX_DATA 1024
 #define MAX_SESSION 10
+#define ENC_NUM 70
+
 #define USERINFO_FILE "userInfoDetails.txt"
+
 struct message {
     unsigned int type;
     unsigned int size;
@@ -83,6 +86,9 @@ int userID = 0; // total number of users is stored in this.
 int sendPersonalUID = -1; // id of the user sending the private message
 int receivePersonalUID = -1; // id of the user receiving the private message
 
+char *enc_passwd(char *userPassword);
+char *decrypt_passwd(char *userPassword);
+
 // getUserData helps to get all the user details and store in user info struct
 // we read the user details from a file.
 void getUserData(struct user_info *userDetails) {
@@ -97,14 +103,21 @@ void getUserData(struct user_info *userDetails) {
     // we will iterate until we reach last line
     while (fgets(getUserDetails, 50, userFile) != NULL) {
         // separate through space and put them in userDetails struct.
+        
         sscanf(getUserDetails, "%s %s", userDetails[userID].username, userDetails[userID].password);
+        
+        // now we got the encrypted password from the file
+        // we call a function to get the actual password
+        sscanf(decrypt_passwd(userDetails[userID].password), "%s", userDetails[userID].password);
+        
         userDetails[userID].user_status = 0; //initially all logged out
         userDetails[userID].session_id = 0; //initially no sessions
         userDetails[userID].client_id = -1; //initially no client
         userID++;
     }
-    fclose(userFile);    
+    fclose(userFile);
 }
+
 
 // registerUserData registers a new user and stores in user info struct
 // we also append to user data file so it is available after switching off server as well.
@@ -123,15 +136,23 @@ int registerUserData(struct user_info *userDetails, char *userName, char* userPa
         // if the ith user has the same username as the packet's username
         if(strcmp(userDetails[i].username, userName) == 0){
             // username exists.
-            printf("Username already exists. Please login to continue.\n");
+            // printf("Username already exists. Please login to continue.\n");
             return -2;
         }
     }
     // first we will append the data to the file.
-    fprintf(userFile, "\n%s %s", userName, userPassword);
+    // to append the password to the file, we encrypt the password
+    if(userID==0){
+        fprintf(userFile, "%s %s", userName, enc_passwd(userPassword));
+    }
+    else{
+        fprintf(userFile, "\n%s %s", userName, enc_passwd(userPassword));
+    }
+    
     // now we will add the data to user_info struct as well
     strcpy(userDetails[userID].username, userName);
-    strcpy(userDetails[userID].password, userPassword);
+    // we add the original password to struct
+    strcpy(userDetails[userID].password, userPassword); 
     userDetails[userID].user_status = 0; //initially all logged out
     userDetails[userID].session_id = 0; //initially no sessions
     userDetails[userID].client_id = -1; //initially no client
@@ -140,6 +161,34 @@ int registerUserData(struct user_info *userDetails, char *userName, char* userPa
     return 1;
 }
 
+// password encryption code here
+char *enc_passwd(char *userPassword){
+    
+    char* storeEncPassword = (char*)malloc(sizeof(char)*1024);
+    
+    for (int i=0; i<strlen(userPassword); i++) {
+        // adding an ascii number so that pass gets hidden in the file.
+        storeEncPassword[i] = userPassword[i] + ENC_NUM;
+    }
+    
+    // storeEncPassword[strlen(userPassword)]='\0';
+
+    return storeEncPassword;
+}
+
+// password decryption code here
+char *decrypt_passwd(char *userPassword){
+
+    char* getEncPassword = (char*)malloc(sizeof(char)*1024);
+    
+    for (int i=0; i<strlen(userPassword); i++) {
+        // removing the ascii number so that we get the actual password.
+        getEncPassword[i] = userPassword[i] - ENC_NUM;
+    }
+    
+    // getEncPassword[strlen(userPassword)]='\0';
+    return getEncPassword;
+}
 
 // based on different TYPE, we do different executions/responses.
 // client reps the file descriptor; message reps the command user has input
@@ -474,12 +523,43 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         // ack
         char *sendMessage = (char *)malloc(sizeof(char) * 1024);
         char data[50] = "Joined Session.\n";
+        
         sprintf(sendMessage, "%d:%d:%s:%s", JN_ACK, (int)strlen(data), client_packet.source, data);
         if(send(client, sendMessage, 1024, 0) == -1){
             perror("send");
             exit(1);
         }
         free(sendMessage);
+
+        // show prev chat after joining session
+        char fileName[20];
+        sprintf(fileName, "Session-%d.txt", session_id);
+        FILE *sessionFile = fopen(fileName, "r");
+        if (sessionFile == NULL) {
+            printf("Could not read session file.\n");
+        }
+        else{
+            char *getData = (char*) malloc(1024*1024);
+            // Read the file contents into the allocated memory
+            fread(getData, 1024, 1024*1024, sessionFile);
+            if(strcmp(getData,"\n")!=0){
+                
+                char *showData = (char *)malloc(1024*1024);
+                char data[50] = "\n--------------CHAT LOG--------------\n";
+                char *sendData = (char*) malloc(1024*1024);
+                sprintf(sendData, "%s\n%s------------------------------------\n", data, getData);
+                sprintf(showData, "%d:%d:%s:%s", NS_ACK, (int)strlen(sendData), client_packet.source, sendData);
+                if(send(client, showData, 1024, 0) == -1){
+                    perror("send");
+                    exit(1);
+                }
+                free(showData);
+                free(sendData);
+                free(getData);
+            
+            }
+            fclose(sessionFile);
+        }
         
 
         return 0;
@@ -547,6 +627,18 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         // send ACK for the session just created.
         char sendMessage[1024];
         char data[50] = "New Session Created\n";
+        // creating a file here to log chat now
+        char fileName[20];
+        sprintf(fileName, "Session-%d.txt", session_id);
+        FILE *sessionFile = fopen(fileName, "w");
+        if (sessionFile == NULL) {
+            printf("Could not create session file\n.");
+            // return 1;
+        }
+        else{
+            fprintf(sessionFile, "\n");
+            fclose(sessionFile);
+        }
         sprintf(sendMessage, "%d:%d:%s:%s", NS_ACK, (int)strlen(data), client_packet.source, data);
         if(send(client, sendMessage, 1024, 0) == -1){
             perror("send");
@@ -797,6 +889,21 @@ int parse_and_execute(struct user_info *users, int client, char *client_message)
         else{
             // if user is in session, we return the session ID.
             printf("%s: %s\n", client_packet.source, client_packet.data);
+            // we log the message into our file
+            // show prev chat after joining session
+            char fileName[20];
+            sprintf(fileName, "Session-%d.txt", sessionID);
+            FILE *sessionFile = fopen(fileName, "a");
+            if (sessionFile == NULL) {
+                printf("Could not write into session file\n.");
+            }
+            else{
+                char *sendMessage = (char *)malloc(sizeof(char) * 1024);
+                sprintf(sendMessage, "%s - %s\n", client_packet.source, client_packet.data);
+                fprintf(sessionFile, "%s\n", sendMessage);
+                free(sendMessage);
+                fclose(sessionFile);
+            }
             return sessionID;
         }
     }
